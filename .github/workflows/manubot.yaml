@@ -2,10 +2,10 @@ name: Manubot
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
 jobs:
   manubot:
     name: Manubot
@@ -30,7 +30,7 @@ jobs:
           path: ci/cache
           key: ci-cache-${{ github.ref }}
           restore-keys: |
-            ci-cache-refs/heads/master
+            ci-cache-refs/heads/main
       - name: Install Environment
         uses: conda-incubator/setup-miniconda@v2
         with:
@@ -53,7 +53,7 @@ jobs:
           name: manuscript-${{ github.run_id }}-${{ env.TRIGGERING_SHA_7 }}
           path: output
       - name: Deploy Manuscript
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push' && !github.event.repository.fork
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && !github.event.repository.fork
         env:
           MANUBOT_ACCESS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MANUBOT_SSH_PRIVATE_KEY: ${{ secrets.MANUBOT_SSH_PRIVATE_KEY }}
