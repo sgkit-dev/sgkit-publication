@@ -75,11 +75,7 @@ jobs:
           path: ci/cache
           key: ci-cache-${{ github.ref }}
           restore-keys: |
-<<<<<<< HEAD
-            ci-cache-refs/heads/main
-=======
             ci-cache-${{ env.DEFAULT_BRANCH_REF }}
->>>>>>> b7a5c3f80d23ecb53de321822e2a2239209e01c7
       - name: Install Environment
         uses: conda-incubator/setup-miniconda@v2
         with:
