@@ -1,22 +1,23 @@
 [
-{
-  "id": "url:https://github.com/manubot/rootstock",
-  "type": "webpage",
-  "URL": "https://github.com/manubot/rootstock",
-  "title": "manubot/rootstock GitHub repository",
-  "container-title": "GitHub",
-  "issued": {
-    "date-parts": [
-      [
-        2019
+  {
+    "id": "url:https://www.malariagen.net/data/ag1000g-phase-2-ar1",
+    "type": "webpage",
+    "URL": "https://www.malariagen.net/data/ag1000g-phase-2-ar1",
+    "title": "Ag1000G phase 2 AR1 data release.",
+    "container-title": "MalariaGEN",
+    "issued": {
+      "date-parts": [
+        [
+          2017
+        ]
       ]
+    },
+    "author": [
+      {
+        "family": "The Anopheles gambiae 1000 Genomes Consortium",
+        "given": ""
+      }
     ]
-  },
-  "author": [
-    {
-      "given": "Daniel",
-      "family": "Himmelstein"
-    }
-  ]
-}
+  }
 ]
+  
