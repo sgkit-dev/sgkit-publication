@@ -5,7 +5,7 @@
 [![HTML Manuscript](https://img.shields.io/badge/manuscript-HTML-blue.svg)](https://pystatgen.github.io/sgkit-publication/)
 [![PDF Manuscript](https://img.shields.io/badge/manuscript-PDF-blue.svg)](https://pystatgen.github.io/sgkit-publication/manuscript.pdf)
 [![GitHub Actions Status](https://github.com/pystatgen/sgkit-publication/workflows/Manubot/badge.svg)](https://github.com/pystatgen/sgkit-publication/actions)
-[![Travis Build Status](https://travis-ci.com/pystatgen/sgkit-publication.svg?branch=master)](https://travis-ci.com/pystatgen/sgkit-publication)
+
 <!-- usage note: delete CI badges above for services not used by your manuscript -->
 
 ## Manuscript description
@@ -79,13 +79,13 @@ Whenever a pull request is opened, CI (continuous integration) will test whether
 The build process aims to detect common errors, such as invalid citations.
 If your pull request build fails, see the CI logs for the cause of failure and revise your pull request accordingly.
 
-When a commit to the `master` branch occurs (for example, when a pull request is merged), CI builds the manuscript and writes the results to the [`gh-pages`](https://github.com/pystatgen/sgkit-publication/tree/gh-pages) and [`output`](https://github.com/pystatgen/sgkit-publication/tree/output) branches.
+When a commit to the `main` branch occurs (for example, when a pull request is merged), CI builds the manuscript and writes the results to the [`gh-pages`](https://github.com/pystatgen/sgkit-publication/tree/gh-pages) and [`output`](https://github.com/pystatgen/sgkit-publication/tree/output) branches.
 The `gh-pages` branch uses [GitHub Pages](https://pages.github.com/) to host the following URLs:
 
 + **HTML manuscript** at https://pystatgen.github.io/sgkit-publication/
 + **PDF manuscript** at https://pystatgen.github.io/sgkit-publication/manuscript.pdf
 
-For continuous integration configuration details, see [`.github/workflows/manubot.yaml`](.github/workflows/manubot.yaml) if using GitHub Actions or [`.travis.yml`](.travis.yml) if using Travis CI.
+For continuous integration configuration details, see [`.github/workflows/manubot.yaml`](.github/workflows/manubot.yaml).
 
 ## License
 
