@@ -1,9 +1,13 @@
 all: paper.pdf
 
-paper.pdf: paper.tex paper.bib
+paper.aux: paper.tex
 	pdflatex paper.tex
+
+paper.bbl: paper.aux paper.bib
 	bibtex paper
 	pdflatex paper.tex
+
+paper.pdf: paper.bbl
 	pdflatex paper.tex
 
 paper.ps: paper.dvi

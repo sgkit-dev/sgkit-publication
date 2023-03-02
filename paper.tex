@@ -14,13 +14,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% ARTICLE SETUP
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\title{This is the title}
+\title{Scalable statistical genetic data analysis in Python}
 
-\author[1*]{Firstname Middlename Surname}
+\author[1]{Eric Czech}
 \author[1,2\authfn{1}\authfn{3}]{Firstname Middlename Familyname}
 \author[2\authfn{1}\authfn{4}]{Firstname Initials Surname}
 \author[2*]{Firstname Surname}
-\affil[1]{Institution 1}
+\affil[1]{Related Sciences LLC}
 \affil[2]{Institution 2}
 
 \corr{email1@example.com}{FMS}
@@ -111,9 +111,17 @@ developers have been working on in the PyData Ecosystem. The goal
 of sgkit is to bring these tools to genomics, using a
 shared platform for analysing large arrays of numerical data. In the
 following subsections we discuss the key technologies, and how
-they appyly to genomics.
+they apply to genomics.
 
-NumPy~\citep{harris2020array}
+\subsubsection{Array oriented computing}
+
+NumPy~\citep{harris2020array} has been transformational, and provides
+the basic framework for scientific computing in Python.
+
+[ Things to cite: pandas~\citep{mckinney2010data}]
+
+[NOTE: we may also want a section discussing the n-dimensional array model,
+but I think this section is the right place to discuss that?]
 
 \subsubsection{Columnar binary data}
 
@@ -123,7 +131,8 @@ encoded as blockwise-compressed text.
 [Explain why row-wise is bad without reference to specific genomics applications.]
 
 The Variant Call Format (VCF) is the standard method for interchanging
-genomics data. In VCF each row describes the observations for a set of samples
+genomics data~\citep{danecek2011variant}.
+In VCF each row describes the observations for a set of samples
 at a given position along the genome, and consists of fixed columns such as the
 genome position as well as per-sample columns. [More info]
 VCF was introduced as part of the 1000 Genomes project, and works reasonably
@@ -156,6 +165,22 @@ through.
 In sgkit we use Zarr which although initially introduced to store
 genomics data, has now been adopted widely in [X, Y and Z].
 Zarr is [description] and has [advantages]
+
+Also to discuss (not sure how these fit in to this specific sectio
+on background technologies vs existing genomics infrastructure; can
+sort out later):
+
+\begin{itemize}
+\item columnar (with small records) good for I/O elimination + sequential access.
+Classical locality of reference stuff as well.
+\item What does this mean with ND arrays? Slippery concept. Discuss.
+\item Compression improvements from columnar.
+\item Poor performance of text-based VCF has been noted many times,
+and lots of prior work in this space e.g. \citep{kelleher2013processing}
+\item Honourable mentions for bcftools~\citep{danecek2021twelve},
+htslib~\citep{bonfield2021htslib}, CRAM~\citep{bonfield2014scramble,bonfield2022cram}
+which uses a columnar approach
+\end{itemize}
 
 \subsubsection{Distributed computing}
 
@@ -283,6 +308,22 @@ scikit-allel visualization?]
 [TODO]
 
 \section{Discussion}
+
+Things to discuss:
+
+\begin{itemize}
+
+\item While API based approaches such as htsget~\citep{kelleher2019htsget}
+and more generally federated access to data~\citep{rehm2021ga4gh}
+are an important part of the future of genomics, we must still pay
+attention to how efficient \emph{local} compute is. We need to
+store and exchange data in an efficient and easily accessible
+format. [Could talk about
+how early GA4GH APIs failed because they didn't really consider
+efficiency? Converting VCF to JSON was never going to be efficient?
+Might not be worth getting into]
+
+\end{itemize}
 
 
 \section{Acknowledgments}
