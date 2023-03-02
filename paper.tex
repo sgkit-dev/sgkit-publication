@@ -1,0 +1,178 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% ELIFE ARTICLE TEMPLATE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% PREAMBLE
+\documentclass[9pt,lineno]{elife}
+% Use the onehalfspacing option for 1.5 line spacing
+% Use the doublespacing option for 2.0 line spacing
+% Please note that these options may affect formatting.
+% Additionally, the use of the \newcommand function should be limited.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% ARTICLE SETUP
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{This is the title}
+
+\author[1*]{Firstname Middlename Surname}
+\author[1,2\authfn{1}\authfn{3}]{Firstname Middlename Familyname}
+\author[2\authfn{1}\authfn{4}]{Firstname Initials Surname}
+\author[2*]{Firstname Surname}
+\affil[1]{Institution 1}
+\affil[2]{Institution 2}
+
+\corr{email1@example.com}{FMS}
+\corr{email2@example.com}{FS}
+
+\contrib[\authfn{1}]{These authors contributed equally to this work}
+\contrib[\authfn{2}]{These authors also contributed equally to this work}
+
+\presentadd[\authfn{3}]{Department, Institute, Country}
+\presentadd[\authfn{4}]{Department, Institute, Country}
+% \presentadd[\authfn{5}]{eLife Sciences editorial Office, eLife Sciences, Cambridge, United Kingdom}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% ARTICLE START
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Please provide an abstract of no more than 150 words. Your abstract should explain the main contributions of your article, and should not contain any material that is not included in the main text.
+\end{abstract}
+
+
+\section{Introduction (Level 1 heading)}
+
+Thanks for using Overleaf to write your article. Your introduction goes here! Some examples of commonly used commands and features are listed below, to help you get started.
+
+\citep{harris2020array}
+
+\section{Results (Level 1 heading)}
+
+\subsection{Level 2 Heading}
+
+\subsubsection{Level 3 Heading}
+
+\paragraph{Level 4 Heading}
+
+\section{Discussion}
+
+
+\section{Acknowledgments}
+
+\bibliography{paper.bib}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Example Table:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \begin{table}[bt]
+% \caption{\label{tab:example}Automobile Land Speed Records (GR 5-10).}
+% % Use "S" column identifier to align on decimal point
+% \begin{tabular}{S l l l r}
+% \toprule
+% {Speed (mph)} & Driver          & Car                        & Engine    & Date     \\
+% \midrule
+% 407.447     & Craig Breedlove & Spirit of America          & GE J47    & 8/5/63   \\
+% 413.199     & Tom Green       & Wingfoot Express           & WE J46    & 10/2/64  \\
+% 434.22      & Art Arfons      & Green Monster              & GE J79    & 10/5/64  \\
+% 468.719     & Craig Breedlove & Spirit of America          & GE J79    & 10/13/64 \\
+% 526.277     & Craig Breedlove & Spirit of America          & GE J79    & 10/15/65 \\
+% 536.712     & Art Arfons      & Green Monster              & GE J79    & 10/27/65 \\
+% 555.127     & Craig Breedlove & Spirit of America, Sonic 1 & GE J79    & 11/2/65  \\
+% 576.553     & Art Arfons      & Green Monster              & GE J79    & 11/7/65  \\
+% 600.601     & Craig Breedlove & Spirit of America, Sonic 1 & GE J79    & 11/15/65 \\
+% 622.407     & Gary Gabelich   & Blue Flame                 & Rocket    & 10/23/70 \\
+% 633.468     & Richard Noble   & Thrust 2                   & RR RG 146 & 10/4/83  \\
+% 763.035     & Andy Green      & Thrust SSC                 & RR Spey   & 10/15/97\\
+% \bottomrule
+% \end{tabular}
+
+% \medskip
+% Source: \url{https://www.sedl.org/afterschool/toolkits/science/pdf/ast_sci_data_tables_sample.pdf}
+
+% \tabledata{This is a description of a data source.}\label{tabdata:first}
+% \tablesrccode{This is a description of a source code.}\label{tabsrccode:first}
+
+% \end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% feature box
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \begin{featurebox}
+% \caption{This is an example feature box}
+% \label{box:simple}
+% This is a feature box. It floats!
+% \medskip
+
+% \includegraphics[width=5cm]{example-image}
+% \featurefig{`Figure' and `table' captions in feature boxes should be entered with \texttt{\textbackslash featurefig} and \texttt{\textbackslash featuretable}. They're not really floats.}
+
+% \lipsum[1]
+% \end{featurebox}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Figures
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \begin{figure}
+% \includegraphics[width=\linewidth]{elife-13214-fig7}
+% \caption{A text-width example.}
+% \label{fig:view}
+% %% If the optional argument in the square brackets is "none", then the caption *will not appear in the main figure at all* and only the full caption will appear under the supplementary figure at the end of the manuscript.
+% %
+% \figsupp[Shorter caption for main text.]
+% {This is a supplementary figure's full caption, which will be used at the end of the manuscript.
+%   \figsuppdata{A data source; see \url{https://doi.org/xxx}}
+%   \figsuppdata{Another data source.}
+%   \figsuppsrccode{And the source code.}}
+% {\includegraphics[width=6cm]{frog}}\label{figsupp:sf1}
+% %
+% %
+% \figsupp{This is another supplementary figure.}
+% {\includegraphics[width=6cm]{frog}}
+% %
+% %
+% \videosupp{This is a description of a video supplement.}\label{videosupp:sv1}
+% \figdata{This is a description of a data source.}\label{figdata:first}
+% \figdata{This is another description of a data source.}\label{figdata:second}
+% \figsrccode{This is a description of a source code.}\label{figsrccode:first}
+% \end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% APPENDICES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \appendix
+% \begin{appendixbox}
+% \label{first:app}
+% \section{Firstly}
+% \lipsum[1]
+
+%% Sadly, we can't use floats in the appendix boxes. So they don't "float", but use \captionof{figure}{...} and \captionof{table}{...} to get them properly caption.
+% \begin{center}
+% \includegraphics[width=\linewidth,height=7cm]{frog}
+% \captionof{figure}{This is a figure in the appendix}
+% \end{center}
+
+% \section{Secondly}
+
+% \lipsum[5-8]
+
+% \begin{center}
+% \includegraphics[width=\linewidth,height=7cm]{frog}
+% \captionof{figure}{This is a figure in the appendix}
+% \end{center}
+
+% \end{appendixbox}
+
+% \begin{appendixbox}
+% \includegraphics[width=\linewidth,height=7cm]{frog}
+% \captionof{figure}{This is a figure in the appendix}
+% \end{appendixbox}
+
+\end{document}
