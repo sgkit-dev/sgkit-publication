@@ -1,0 +1,408 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% ELIFE ARTICLE TEMPLATE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% PREAMBLE
+\documentclass[9pt,lineno]{elife}
+% Use the onehalfspacing option for 1.5 line spacing
+% Use the doublespacing option for 2.0 line spacing
+% Please note that these options may affect formatting.
+% Additionally, the use of the \newcommand function should be limited.
+
+% Systematise how we typeset elements of the API (functions, variables, etc)
+\newcommand{\sgapi}[1]{\texttt{#1}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% ARTICLE SETUP
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{This is the title}
+
+\author[1*]{Firstname Middlename Surname}
+\author[1,2\authfn{1}\authfn{3}]{Firstname Middlename Familyname}
+\author[2\authfn{1}\authfn{4}]{Firstname Initials Surname}
+\author[2*]{Firstname Surname}
+\affil[1]{Institution 1}
+\affil[2]{Institution 2}
+
+\corr{email1@example.com}{FMS}
+\corr{email2@example.com}{FS}
+
+\contrib[\authfn{1}]{These authors contributed equally to this work}
+\contrib[\authfn{2}]{These authors also contributed equally to this work}
+
+\presentadd[\authfn{3}]{Department, Institute, Country}
+\presentadd[\authfn{4}]{Department, Institute, Country}
+% \presentadd[\authfn{5}]{eLife Sciences editorial Office, eLife Sciences, Cambridge, United Kingdom}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% ARTICLE START
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\maketitle
+
+% Please provide an abstract of no more than 150 words. Your abstract should
+% explain the main contributions of your article, and should not contain any
+% material that is not included in the main text.
+
+\begin{abstract}
+The PyData ecosystem is an umbrella term covering Python packages based on a
+broad range of modern techniques, such as chunk-compressed columnar data
+storage, just-in-time compilation of numerical code, and scaling of
+calculations across clusters of computers. Together, these technologies have
+been successful applied in scientific applications using data at the petabyte
+scale. These technologies, and the many benefits that they provide, however,
+have not been successfully applied in the field of genomics, which is currently
+making the transition to working at petabyte scale. We present sgkit, a Python
+package designed to bring the benefits of the PyData ecosystem to genomics,
+allowing users to efficiently analyse large-scale data using familiar tools. We
+discuss the underlying design principles of these technologies and illustrate
+their suitability in genetics and genomics applications, via examples on
+large-scale datasets such as UK Biobank.
+\end{abstract}
+
+
+\section{Introduction}
+
+
+% This current phrasing would annoy people, just spewing this
+% out to roughly say what I think is relevant, we can refine later.
+The study of genetics is currently transforming into a true big-data science.
+Since the Human Genome Project, genomics has required working with
+signicant volumes of data and the specialised methods
+required to transform the raw biological signals into analysable data,
+such as assembly[cite], mapping[cite] and variant calling[cite] are compute intensive.
+However, beyond these initial steps required to generate the data, the actual
+analysis of the genetic variation could typically be performed on a single
+computer, and often with ad-hoc software written using shell utilities
+and scripting languages such as Perl.
+From the Human Genome Project, through 1000 Genomes, and now with
+population scale genomics datasets such as UK Biobank, GeL, etc,
+the requirements for analysing the data have far outgrown these
+methods. Simple queries can require minutes to complete, which
+has a negative effect on researcher productivity, as well as limiting
+the analyses that can be performed. The financial cost of working
+with such datasets is also very large, which limits accessibility
+to well-funded groups.
+
+[Summary of what we do and paper roadmap]
+
+\section{Results}
+
+\subsection{Enabling technologies}
+
+[High-level summary of where things are in terms of data analysis
+in genomics, pointing forwards to
+the individual use-cases of popgen, statgen etc to discuss the
+individual tools.]
+
+Other sciences have been working at the petabyte scale for some time.
+[I don't really know the background here, it'll require some research.
+Astronomics, geosciences etc have all been working with such large
+datasets, and been using Python to do so, successfullly. Concrete
+examples]
+
+While some aspects of genomics data are unique and require specialised
+tooling, by the time that variants have been called and the we wish
+to work on the final stages of analysis, we are usually
+working with large n-dimensional arrays of numerical data. Such
+datasets are precisely what a large and active community of
+developers have been working on in the PyData Ecosystem. The goal
+of sgkit is to bring these tools to genomics, using a
+shared platform for analysing large arrays of numerical data. In the
+following subsections we discuss the key technologies, and how
+they appyly to genomics.
+
+NumPy~\citep{harris2020array}
+
+\subsubsection{Columnar binary data}
+
+Perhaps the most important factor limiting scalability in contemporary genomics
+is the continued reliance on row-wise storage of data---most often
+encoded as blockwise-compressed text.
+[Explain why row-wise is bad without reference to specific genomics applications.]
+
+The Variant Call Format (VCF) is the standard method for interchanging
+genomics data. In VCF each row describes the observations for a set of samples
+at a given position along the genome, and consists of fixed columns such as the
+genome position as well as per-sample columns. [More info]
+VCF was introduced as part of the 1000 Genomes project, and works reasonably
+well at the scale of 1000s of samples. However, when we have hundreds of
+thousands of samples it becomes extremely unwieldy
+. For example, the
+phased genotypes for 200K samples in UK Biobank produced by Browning [cite]
+require X GB of space.
+(Note that this file contains no extra INFO keys; in practice a great deal
+more information is stored in the VCF leading to files that are orders of
+magnitude larger, and requiring them to be split into chunks, further
+increasing their unwieldiness.)
+Running [a simple query that requires only looking at
+one column] on this file like X required Y minutes.
+
+[TODO be more concrete here; what is the thing we're summarising?]
+This slow response time to a simple query is primarily caused by the row-wise
+nature of VCF (and BCF), because in order to read a single piece of
+information about a particular variant site we must read *all* the information
+about that site. Then, if we wish to summarise that information over
+all sites, then we must read the entire dataset.
+
+A lesser but still significant cause of inefficiency is the use of
+text to store the data. [More info]
+
+These issues are of course well known, and there are numerous projects
+that seek to alleviate them. [Discuss] They're all quite bespoke to genomics data
+through.
+
+In sgkit we use Zarr which although initially introduced to store
+genomics data, has now been adopted widely in [X, Y and Z].
+Zarr is [description] and has [advantages]
+
+\subsubsection{Distributed computing}
+
+Beyond a certain scale of data there is no alternative but to
+parallelise calculations across multiple computers if you wish
+them to complete in a reasonable timeframe. Classically in
+High Performance Computing (HPC) environments, most often used
+to perform scientific computing, such distributed computing
+is done using the Message Passing Interface (MPI). MPI
+typically assumes a low-latency connection between nodes in
+cluster, often with specialised hardware interconnects,
+and can be used very effectively to [do things like solve big PDEs].
+However, MPI is [hard to program and hard to run], and applications
+in genomics have been limited to [things like the ABySS assembler].
+
+[Paragraph describing, Big data, Hadoop, MapReduce, Spark, etc. Why
+the don't use MPI, that the problem being solved was/is.
+Applications to genomics like ADAM were promising, but never really
+took off. Hail (see also genomics section) notably does a
+bunch of things well, but only by rewriting whole chunks of the
+underlying technologies]
+
+We use Dask [for reasons].
+
+\subsubsection{Just-in-time compilation}
+
+Many of the analyses that we wish to perform in genomics are unique,
+and the ability to quickly put together complex queries using
+high-level tools like shell pipelines and scripting languages
+is often a major bonus. However, such approaches are often not
+viable at the petabyte scale, where efficient compiled code that
+uses available CPU resources effectively are required. However,
+writing code in compiled languages such as C, C++ or Java
+is far more labour intensive, as well as requiring more specialised
+software development experience.
+
+Similarly, [scripting languages such as python are great for
+contributing to open source libraries, because there's a much
+lower barrier to contribution.]
+
+We use numba because [it's awesome].
+
+\subsubsection{Heterogenous computing}
+
+GPUs are cool, we support them.
+
+\subsection{Sgkit design principles}
+
+[The previous section has set the stage for the enabling technologies,
+here we talk about how we use them from a high-level, and lay out
+the overall design philosophy. This isn't documentation, rather
+it's the forum where we lay out explicitly early design choices
+and their rationale.]
+
+
+\subsection{Population Genetics}
+
+% Who are population geneticists, and what do they do and what tools
+% do they typically use?
+[TODO: get help from Jerome and Alistair]
+[Existing tools include scikit-allel.]
+
+\subsubsection{API overview}
+
+Sgkit provides a number of methods for computing statistics in population
+genetics. All methods work on an Xarray dataset that has a number of well-known
+variables defined [TODO: see section...], which for population genetics are the
+genotype calls, stored in the \sgapi{call\_genotype} variable. The methods return a
+new dataset containing variables that store the computed statistics.
+
+Before running the methods, the dataset is usually divided into windows along
+the genome, using the \sgapi{window\_by} functions, which tell sgkit to produce
+per-window statistics. For example, \sgapi{window\_by\_position} creates windows that
+are a fixed number of base pairs, while \sgapi{window\_by\_interval} creates windows
+corresponding to arbitrary user-defined intervals.
+
+It's common in population genetics to group samples into populations, which in
+sgkit are referred to as \emph{cohorts}. There are two types of statistics: one-way
+statistics where there is a single statistic for each cohort, and multi-way
+statistics where there is a statistic between each pair, triple, etc of
+cohorts. [TODO: do we need to say how cohorts are defined?]
+
+The methods for one-way statistics include \sgapi{diversity} for computing mean
+genetic diversity, \sgapi{Tajimas\_D} for computing Tajima’s D, and
+\sgapi{Garud\_H} for
+computing the H1, H12, H123 and H2/H1 statistics~\citep{garud2015recent}.
+
+The methods for multi-way statistics include \sgapi{divergence} and
+\sgapi{Fst} for
+computing mean genetic divergence and $F_{ST}$ (respectively) between pairs of
+cohorts, and \sgapi{pbs} for computing the population branching statistic between
+cohort triples.
+
+\subsubsection{Example}
+
+We converted phased Ag1000G hypotype data in Zarr format
+%[@https://www.malariagen.net/data/ag1000g-phase-2-ar1]
+to sgkit's Zarr format
+using the \sgapi{read\_scikit\_allel\_vcfzarr} function.
+The data contained 1,164
+samples at 39,604,636 sites, and was [TODO] MB on disk before conversion, and
+[TODO] MB after conversion to sgkit's Zarr format. Data for the X chromosome
+was discarded since it was not available for all samples. The conversion took
+[TODO: X minutes Y seconds], including a postprocessing ``rechunk" step to
+ensure that the data was suitably chunked for the subsequent analysis.
+
+We grouped samples into 15 cohorts based on location using simple Pandas and
+Xarray data manipulation functions. We then set up half-overlapping windows
+along the genome using sgkit's \sgapi{window\_by\_position} function with a fixed
+window size of 6000 base pairs, and a step size of 3000 base pairs.
+
+We computed H statistics for one cohort using the \sgapi{Garud\_H} function in sgkit.
+This operation took [TODO: X minutes Y seconds]. Finally, we verified that the
+output was concordant with scikit-allel. [TODO: how hard to reproduce the
+scikit-allel visualization?]
+
+[TODO: summarize the biologically interesting thing here]
+
+\subsection{Statistical Genetics}
+
+[TODO]
+
+\subsection{Quantitative Genetics}
+
+[TODO]
+
+\section{Discussion}
+
+
+\section{Acknowledgments}
+
+\bibliography{paper.bib}
+
+% \subsection{Level 2 Heading}
+
+% \subsubsection{Level 3 Heading}
+
+% \paragraph{Level 4 Heading}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Example Table:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \begin{table}[bt]
+% \caption{\label{tab:example}Automobile Land Speed Records (GR 5-10).}
+% % Use "S" column identifier to align on decimal point
+% \begin{tabular}{S l l l r}
+% \toprule
+% {Speed (mph)} & Driver          & Car                        & Engine    & Date     \\
+% \midrule
+% 407.447     & Craig Breedlove & Spirit of America          & GE J47    & 8/5/63   \\
+% 413.199     & Tom Green       & Wingfoot Express           & WE J46    & 10/2/64  \\
+% 434.22      & Art Arfons      & Green Monster              & GE J79    & 10/5/64  \\
+% 468.719     & Craig Breedlove & Spirit of America          & GE J79    & 10/13/64 \\
+% 526.277     & Craig Breedlove & Spirit of America          & GE J79    & 10/15/65 \\
+% 536.712     & Art Arfons      & Green Monster              & GE J79    & 10/27/65 \\
+% 555.127     & Craig Breedlove & Spirit of America, Sonic 1 & GE J79    & 11/2/65  \\
+% 576.553     & Art Arfons      & Green Monster              & GE J79    & 11/7/65  \\
+% 600.601     & Craig Breedlove & Spirit of America, Sonic 1 & GE J79    & 11/15/65 \\
+% 622.407     & Gary Gabelich   & Blue Flame                 & Rocket    & 10/23/70 \\
+% 633.468     & Richard Noble   & Thrust 2                   & RR RG 146 & 10/4/83  \\
+% 763.035     & Andy Green      & Thrust SSC                 & RR Spey   & 10/15/97\\
+% \bottomrule
+% \end{tabular}
+
+% \medskip
+% Source: \url{https://www.sedl.org/afterschool/toolkits/science/pdf/ast_sci_data_tables_sample.pdf}
+
+% \tabledata{This is a description of a data source.}\label{tabdata:first}
+% \tablesrccode{This is a description of a source code.}\label{tabsrccode:first}
+
+% \end{table}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% feature box
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \begin{featurebox}
+% \caption{This is an example feature box}
+% \label{box:simple}
+% This is a feature box. It floats!
+% \medskip
+
+% \includegraphics[width=5cm]{example-image}
+% \featurefig{`Figure' and `table' captions in feature boxes should be entered with \texttt{\textbackslash featurefig} and \texttt{\textbackslash featuretable}. They're not really floats.}
+
+% \lipsum[1]
+% \end{featurebox}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Figures
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \begin{figure}
+% \includegraphics[width=\linewidth]{elife-13214-fig7}
+% \caption{A text-width example.}
+% \label{fig:view}
+% %% If the optional argument in the square brackets is "none", then the caption *will not appear in the main figure at all* and only the full caption will appear under the supplementary figure at the end of the manuscript.
+% %
+% \figsupp[Shorter caption for main text.]
+% {This is a supplementary figure's full caption, which will be used at the end of the manuscript.
+%   \figsuppdata{A data source; see \url{https://doi.org/xxx}}
+%   \figsuppdata{Another data source.}
+%   \figsuppsrccode{And the source code.}}
+% {\includegraphics[width=6cm]{frog}}\label{figsupp:sf1}
+% %
+% %
+% \figsupp{This is another supplementary figure.}
+% {\includegraphics[width=6cm]{frog}}
+% %
+% %
+% \videosupp{This is a description of a video supplement.}\label{videosupp:sv1}
+% \figdata{This is a description of a data source.}\label{figdata:first}
+% \figdata{This is another description of a data source.}\label{figdata:second}
+% \figsrccode{This is a description of a source code.}\label{figsrccode:first}
+% \end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% APPENDICES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% \appendix
+% \begin{appendixbox}
+% \label{first:app}
+% \section{Firstly}
+% \lipsum[1]
+
+%% Sadly, we can't use floats in the appendix boxes. So they don't "float", but use \captionof{figure}{...} and \captionof{table}{...} to get them properly caption.
+% \begin{center}
+% \includegraphics[width=\linewidth,height=7cm]{frog}
+% \captionof{figure}{This is a figure in the appendix}
+% \end{center}
+
+% \section{Secondly}
+
+% \lipsum[5-8]
+
+% \begin{center}
+% \includegraphics[width=\linewidth,height=7cm]{frog}
+% \captionof{figure}{This is a figure in the appendix}
+% \end{center}
+
+% \end{appendixbox}
+
+% \begin{appendixbox}
+% \includegraphics[width=\linewidth,height=7cm]{frog}
+% \captionof{figure}{This is a figure in the appendix}
+% \end{appendixbox}
+
+\end{document}
