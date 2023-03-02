@@ -38,18 +38,163 @@
 
 \maketitle
 
+% Please provide an abstract of no more than 150 words. Your abstract should
+% explain the main contributions of your article, and should not contain any
+% material that is not included in the main text.
+
 \begin{abstract}
-Please provide an abstract of no more than 150 words. Your abstract should explain the main contributions of your article, and should not contain any material that is not included in the main text.
+The PyData ecosystem is an umbrella term covering Python packages based on a
+broad range of modern techniques, such as chunk-compressed columnar data
+storage, just-in-time compilation of numerical code, and scaling of
+calculations across clusters of computers. Together, these technologies have
+been successful applied in scientific applications using data at the petabyte
+scale. These technologies, and the many benefits that they provide, however,
+have not been successfully applied in the field of genomics, which is currently
+making the transition to working at petabyte scale. We present sgkit, a Python
+package designed to bring the benefits of the PyData ecosystem to genomics,
+allowing users to efficiently analyse large-scale data using familiar tools. We
+discuss the underlying design principles of these technologies and illustrate
+their suitability in genetics and genomics applications, via examples on
+large-scale datasets such as UK Biobank.
 \end{abstract}
 
 
-\section{Introduction (Level 1 heading)}
+\section{Introduction}
 
-Thanks for using Overleaf to write your article. Your introduction goes here! Some examples of commonly used commands and features are listed below, to help you get started.
 
-\citep{harris2020array}
+% This current phrasing would annoy people, just spewing this
+% out to roughly say what I think is relevant, we can refine later.
+The study of genetics is currently transforming into a true big-data science.
+Since the Human Genome Project, genomics has required working with
+signicant volumes of data and the specialised methods
+required to transform the raw biological signals into analysable data,
+such as assembly[cite], mapping[cite] and variant calling[cite] are compute intensive.
+However, beyond these initial steps required to generate the data, the actual
+analysis of the genetic variation could typically be performed on a single
+computer, and often with ad-hoc software written using shell utilities
+and scripting languages such as Perl.
+From the Human Genome Project, through 1000 Genomes, and now with
+population scale genomics datasets such as UK Biobank, GeL, etc,
+the requirements for analysing the data have far outgrown these
+methods. Simple queries can require minutes to complete, which
+has a negative effect on researcher productivity, as well as limiting
+the analyses that can be performed. The financial cost of working
+with such datasets is also very large, which limits accessibility
+to well-funded groups.
 
-\section{Results (Level 1 heading)}
+[High-level summary of where things are in terms of data analysis
+in genomics, pointing forwards to
+the individual use-cases of popgen, statgen etc to discuss the
+individual tools.]
+
+Other sciences have been working at the petabyte scale for some time.
+[I don't really know the background here, it'll require some research.
+Astronomics, geosciences etc have all been working with such large
+datasets, and been using Python to do so, successfullly. Concrete
+examples]
+
+While some aspects of genomics data are unique and require specialised
+tooling, by the time that variants have been called and the we wish
+to work on the final stages of analysis, we are usually
+working with large n-dimensional arrays of numerical data. Such
+datasets are precisely what a large and active community of
+developers have been working on in the PyData Ecosystem. The goal
+of sgkit is to bring these tools to genomics, using a
+shared platform for analysing large arrays of numerical data. In the
+following subsections we discuss the key technologies, and how
+they appyly to genomics.
+
+
+NumPy~\citep{harris2020array}
+
+\subsection{Columnar binary data}
+
+Perhaps the most important factor limiting scalability in contemporary genomics
+is the continued reliance on row-wise storage of data---most often
+encoded as blockwise-compressed text.
+[Explain why row-wise is bad without reference to specific genomics applications.]
+
+The Variant Call Format (VCF) is the standard method for interchanging
+genomics data. In VCF each row describes the observations for a set of samples
+at a given position along the genome, and consists of fixed columns such as the
+genome position as well as per-sample columns. [More info]
+VCF was introduced as part of the 1000 Genomes project, and works reasonably
+well at the scale of 1000s of samples. However, when we have hundreds of
+thousands of samples it becomes extremely unwieldy
+. For example, the
+phased genotypes for 200K samples in UK Biobank produced by Browning [cite]
+require X GB of space.
+(Note that this file contains no extra INFO keys; in practice a great deal
+more information is stored in the VCF leading to files that are orders of
+magnitude larger, and requiring them to be split into chunks, further
+increasing their unwieldiness.)
+Running [a simple query that requires only looking at
+one column] on this file like X required Y minutes.
+
+[TODO be more concrete here; what is the thing we're summarising?]
+This slow response time to a simple query is primarily caused by the row-wise
+nature of VCF (and BCF), because in order to read a single piece of
+information about a particular variant site we must read *all* the information
+about that site. Then, if we wish to summarise that information over
+all sites, then we must read the entire dataset.
+
+A lesser but still significant cause of inefficiency is the use of
+text to store the data. [More info]
+
+These issues are of course well known, and there are numerous projects
+that seek to alleviate them. [Discuss] They're all quite bespoke to genomics data
+through.
+
+In sgkit we use Zarr which although initially introduced to store
+genomics data, has now been adopted widely in [X, Y and Z].
+Zarr is [description] and has [advantages]
+
+\subsection{Distributed computing}
+
+Beyond a certain scale of data there is no alternative but to
+parallelise calculations across multiple computers if you wish
+them to complete in a reasonable timeframe. Classically in
+High Performance Computing (HPC) environments, most often used
+to perform scientific computing, such distributed computing
+is done using the Message Passing Interface (MPI). MPI
+typically assumes a low-latency connection between nodes in
+cluster, often with specialised hardware interconnects,
+and can be used very effectively to [do things like solve big PDEs].
+However, MPI is [hard to program and hard to run], and applications
+in genomics have been limited to [things like the ABySS assembler].
+
+[Paragraph describing, Big data, Hadoop, MapReduce, Spark, etc. Why
+the don't use MPI, that the problem being solved was/is.
+Applications to genomics like ADAM were promising, but never really
+took off. Hail (see also genomics section) notably does a
+bunch of things well, but only by rewriting whole chunks of the
+underlying technologies]
+
+We use Dask [for reasons].
+
+\subsection{Just-in-time compilation}
+
+Many of the analyses that we wish to perform in genomics are unique,
+and the ability to quickly put together complex queries using
+high-level tools like shell pipelines and scripting languages
+is often a major bonus. However, such approaches are often not
+viable at the petabyte scale, where efficient compiled code that
+uses available CPU resources effectively are required. However,
+writing code in compiled languages such as C, C++ or Java
+is far more labour intensive, as well as requiring more specialised
+software development experience.
+
+Similarly, [scripting languages such as python are great for
+contributing to open source libraries, because there's a much
+lower barrier to contribution.]
+
+We use numba because [it's awesome].
+
+\subsection{Heterogenous computing}
+
+GPUs are cool, we support them.
+
+\section{Results}
 
 \subsection{Level 2 Heading}
 
