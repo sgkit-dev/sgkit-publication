@@ -111,9 +111,17 @@ developers have been working on in the PyData Ecosystem. The goal
 of sgkit is to bring these tools to genomics, using a
 shared platform for analysing large arrays of numerical data. In the
 following subsections we discuss the key technologies, and how
-they appyly to genomics.
+they apply to genomics.
 
-NumPy~\citep{harris2020array}
+\subsubsection{Array oriented computing}
+
+NumPy~\citep{harris2020array} has been transformational, and provides
+the basic framework for scientific computing in Python.
+
+[ Things to cite: pandas~\citep{mckinney2010data}]
+
+[NOTE: we may also want a section discussing the n-dimensional array model,
+but I think this section is the right place to discuss that?]
 
 \subsubsection{Columnar binary data}
 
@@ -156,6 +164,16 @@ through.
 In sgkit we use Zarr which although initially introduced to store
 genomics data, has now been adopted widely in [X, Y and Z].
 Zarr is [description] and has [advantages]
+
+Also to discuss:
+
+\begin{itemize}
+\item columnar (with small records) good for I/O elimination + sequential access.
+Classical locality of reference stuff as well.
+\item What does this mean with ND arrays? Slippery concept. Discuss.
+\item Compression improvements from columnar.
+
+\end{itemize}
 
 \subsubsection{Distributed computing}
 

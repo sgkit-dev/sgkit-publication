@@ -5,6 +5,7 @@ paper.aux: paper.tex
 
 paper.bbl: paper.aux paper.bib
 	bibtex paper
+	pdflatex paper.tex
 
 paper.pdf: paper.bbl
 	pdflatex paper.tex
