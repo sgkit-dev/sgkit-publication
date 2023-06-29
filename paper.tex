@@ -10,6 +10,7 @@
 
 % Systematise how we typeset elements of the API (functions, variables, etc)
 \newcommand{\sgapi}[1]{\texttt{#1}}
+\newcommand{\toolname}[1]{\texttt{#1}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% ARTICLE SETUP
@@ -241,11 +242,76 @@ and their rationale.]
 [TODO]
 
 \subsection{Population Genetics}
+Population geneticists study evolution at the population scale,
+characterising the evolutionary forces shaping the diversity
+within and between populations. Compared to statistical genetics,
+which is largely concerned with humans, population geneticists
+study a broad range of organisms across the tree of life, both well
+characterised ''model'' species, and those for which the most basic
+genetic information (such as the sizes and number of chromosomes,
+and ploidy level) must be determined.
+Sample sizes are also much smaller,
+with dozens to a few hundred genomes per species being typical.
+However, projects such as Darwin Tree of
+Life~\citep{darwin2022sequence} are currently sequencing tens of
+thousands of different species.
 
-% Who are population geneticists, and what do they do and what tools
-% do they typically use?
-[TODO: get help from Jerome and Alistair]
-[Existing tools include scikit-allel.]
+% JK: I'm making this up - need to get something concrete to back it up.
+% Is there any review paper summarising computation in popgen?
+[THIS IS A ROUGH DRAFT: I'm just getting in a paragraph here with citations
+to tools/packages that are important in PopGen. We can get a narrative
+through it later.]
+Because of the relatively small volumes of data and the variety
+of different organisms, statistical analysis of population genetic
+data has tended to be done by custom scripts. Tools such
+as \toolname{plink}~\citep{purcell2007plink}
+are often not applicable because of the built-in
+assumptions that are appropriate only for humans and other model organisms.
+Programs such as Arlequin~\citep{excoffier2005arlequin,excoffier2010arlequin}
+contain a large suite of features, but can only be accessed by GUI
+or command line interfaces.
+BioPerl~\citep{stajich2002bioperl} and BioPython~\citep{cock2009biopython}
+are more concerned with alignments and providing access to command-line
+programs, and are oriented towards flexibility rather than
+performance.
+The \toolname{scikit-allel}~\citep{miles2023scikit}
+and \toolname{pylibseq}~\citep{thornton2003libsequence}
+libraries provide efficient programmatic
+access to a rich suite of population genetic statistics, but have limited
+support for parallelisation.
+
+% Discussion of simulated data and tree-based stuff.
+Population geneticists are often interested in comparing with simulated data.
+Until recently, this was done by processing
+custom text formats output by programs such as
+\toolname{ms}~\citep{hudson2002generating} and accompanying
+scripts to compute basic statistics.
+% JK: This is a bit of a self-cite fest here, but I think people would
+% wonder what the connection between sgkit and tskit is if we don't
+% explain it. Happy to discuss if anyone doesn't like it, though.
+The \toolname{msprime}~\citep{kelleher2016efficient} simulator took a
+different approach by providing a Python API which gives
+access to the underlying genealogical trees, which often allow
+statistics to be calculated more efficiently than standard
+matrix-based approaches~\citep{ralph2020efficiently}.
+These methods have been subsequently generalised to
+other forms of
+simulation~\citep{kelleher2018efficient,haller2018tree}
+as well as being inferred from observed variation
+data~\citep{kelleher2019inferring,wohns2022unified},
+supported by the open-source \toolname{tskit}
+library~\citep{tskit2023tskit}.
+See~\cite{baumdicker2021efficient} for further discussion on
+computation in population genetic simulations, and the
+\texttt{tskit} software ecosystem.
+% Need to say this somewhere, or people will wonder. This is a
+% rough draft
+While tree-based methods are excellent for simulated data
+and attractive for real-data analysis, they are not a solution
+to all problems. Firstly, not all datasets are appropriate
+for tree inference and secondly, before we infer trees we must
+first perform extensive quality control of the raw data, necessarily
+in variant-matrix form.
 
 \subsubsection{API overview}
 
