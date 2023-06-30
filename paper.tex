@@ -51,7 +51,7 @@ The PyData ecosystem is an umbrella term covering Python packages based on a
 broad range of modern techniques, such as chunk-compressed columnar data
 storage, just-in-time compilation of numerical code, and scaling of
 calculations across clusters of computers. Together, these technologies have
-been successful applied in scientific applications using data at the petabyte
+been successfully applied in scientific applications using data at the petabyte
 scale. These technologies, and the many benefits that they provide, however,
 have not been successfully applied in the field of genomics, which is currently
 making the transition to working at petabyte scale. We present sgkit, a Python
@@ -62,9 +62,7 @@ their suitability in genetics and genomics applications, via examples on
 large-scale datasets such as UK Biobank.
 \end{abstract}
 
-
 \section{Introduction}
-
 
 % This current phrasing would annoy people, just spewing this
 % out to roughly say what I think is relevant, we can refine later.
@@ -83,14 +81,23 @@ the requirements for analysing the data have far outgrown these
 methods. Simple queries can require minutes to complete, which
 has a negative effect on researcher productivity, as well as limiting
 the analyses that can be performed. The financial cost of working
-with such datasets is also very large, which limits accessibility
-to well-funded groups.
+with such datasets is also substantial, which limits accessibility
+to an elite set of well-funded groups.
 
 [Summary of what we do and paper roadmap]
 
 \section{Results}
 
 \subsection{Sgkit design principles}
+Openness is a core organising principle of sgkit, both in terms of
+development processes and code licensing, and also with respect
+to usability. By following the general philosophy of array-oriented
+computing, the functionality in sgkit is organised around the
+key concept of a ``dataset`` which encapsulates a set of
+related ``variables''. The implementation aims to be as agnostic
+as possible as to the underlying implementation of these arrays,
+which can be stored in-memory as NumPy arrays, in chunked
+compressed on-disk storage as Zarr arrays, or ...
 
 [In later sections we discuss enabling technologies in detail,
 here we talk about how we use them from a high-level, and layout
@@ -323,7 +330,8 @@ one column] on this file like X required Y minutes.
 [TODO be more concrete here; what is the thing we're summarising?]
 This slow response time to a simple query is primarily caused by the row-wise
 nature of VCF (and BCF), because in order to read a single piece of
-information about a particular variant site we must read *all* the information
+information about a particular variant site we must read \emph{all}
+the information
 about that site. Then, if we wish to summarise that information over
 all sites, then we must read the entire dataset.
 
@@ -369,7 +377,7 @@ However, MPI is [hard to program and hard to run], and applications
 in genomics have been limited to [things like the ABySS assembler].
 
 [Paragraph describing, Big data, Hadoop, MapReduce, Spark, etc. Why
-the don't use MPI, that the problem being solved was/is.
+they don't use MPI, that the problem being solved was/is.
 Applications to genomics like ADAM were promising, but never really
 took off. Hail (see also genomics section) notably does a
 bunch of things well, but only by rewriting whole chunks of the
