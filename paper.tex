@@ -99,10 +99,35 @@ it's the forum where we lay out explicitly early design choices
 and their rationale.]
 
 \subsection{Statistical Genetics}
+Statistical genetics is largely concerned with disease associations
+in humans, and the success of genome wide association studies (GWAS) has led
+to explosive growth in the field. Sample size is the single most
+important factor in driving statistical power, and
+genotype array data has been collected for millions of samples [REFS].
+Because of the relative heterogenity of the data sources and
+required tasks, programs like \toolname{plink} are able to provide
+an end-to-end analysis pipline from the source genotype data, quality
+control and associations via Manhattan plots.
+
+Early studies ecompassed X samples, but now we have UK Biobank
+and large meta analyses [GIANT height paper]. Single computer platforms
+like plink are no longer sufficient, so we need things like Hail.
+Hail has enabled a whole bunch of stuff. Recently we have been moving
+Whole Exome [UKB whole exome paper]
+and even WGS data [UKB whole genome paper] for hundreds of thousands
+of samples, raising the volumes of data to be processed even higher.
 
 [TODO]
 
 \subsection{Population Genetics}
+[Things to work in here:
+1) Classically popgen is concerned with allele frequencies, and so
+used a variety of different data types to access this.
+2) Data was at a pretty small scale, so you could do the entire
+analysis within a single monolithic package like Arlequin.
+3) people have been transitioning to WGS data recently.
+]
+
 Population geneticists study evolution at the population scale,
 characterising the evolutionary forces shaping the diversity
 within and between populations. Compared to statistical genetics,
@@ -215,7 +240,7 @@ The data contained 1,164
 samples at 39,604,636 sites, and was [TODO] MB on disk before conversion, and
 [TODO] MB after conversion to sgkit's Zarr format. Data for the X chromosome
 was discarded since it was not available for all samples. The conversion took
-[TODO: X minutes Y seconds], including a postprocessing ``rechunk" step to
+[TODO: X minutes Y seconds], including a postprocessing ``rechunk'' step to
 ensure that the data was suitably chunked for the subsequent analysis.
 
 We grouped samples into 15 cohorts based on location using simple Pandas and
