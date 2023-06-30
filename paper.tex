@@ -10,6 +10,7 @@
 
 % Systematise how we typeset elements of the API (functions, variables, etc)
 \newcommand{\sgapi}[1]{\texttt{#1}}
+\newcommand{\toolname}[1]{\texttt{#1}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% ARTICLE SETUP
@@ -89,6 +90,151 @@ to well-funded groups.
 
 \section{Results}
 
+\subsection{Sgkit design principles}
+
+[In later sections we discuss enabling technologies in detail,
+here we talk about how we use them from a high-level, and layout
+the overall design philosophy. This isn't documentation, rather
+it's the forum where we lay out explicitly early design choices
+and their rationale.]
+
+\subsection{Statistical Genetics}
+
+[TODO]
+
+\subsection{Population Genetics}
+Population geneticists study evolution at the population scale,
+characterising the evolutionary forces shaping the diversity
+within and between populations. Compared to statistical genetics,
+which is largely concerned with humans, population geneticists
+study a broad range of organisms across the tree of life, both well
+characterised ``model'' species, and those for which the most basic
+genetic information (such as the sizes and number of chromosomes,
+and ploidy level) must be determined.
+Sample sizes are also much smaller,
+with dozens to a few hundred genomes per species being typical.
+However, projects such as Darwin Tree of
+Life~\citep{darwin2022sequence} are currently sequencing tens of
+thousands of different species.
+
+% JK: I'm making this up - need to get something concrete to back it up.
+% Is there any review paper summarising computation in popgen?
+[THIS IS A ROUGH DRAFT: I'm just getting in a paragraph here with citations
+to tools/packages that are important in PopGen. We can get a narrative
+through it later.]
+Because of the relatively small volumes of data and the variety
+of different organisms, statistical analysis of population genetic
+data has tended to be done by custom scripts. Tools such
+as \toolname{plink}~\citep{purcell2007plink}
+are often not applicable because of the built-in
+assumptions that are appropriate only for humans and other model organisms.
+Programs such as Arlequin~\citep{excoffier2005arlequin,excoffier2010arlequin}
+contain a large suite of features, but can only be accessed by GUI
+or command line interfaces.
+BioPerl~\citep{stajich2002bioperl} and BioPython~\citep{cock2009biopython}
+are more concerned with alignments and providing access to command-line
+programs, and are oriented towards flexibility rather than
+performance.
+The \toolname{scikit-allel}~\citep{miles2023scikit}
+and \toolname{pylibseq}~\citep{thornton2003libsequence}
+libraries provide efficient programmatic
+access to a rich suite of population genetic statistics, but have limited
+support for parallelisation.
+
+% Discussion of simulated data and tree-based stuff.
+Population geneticists are often interested in comparing with simulated data.
+Until recently, this was done by processing
+custom text formats output by programs such as
+\toolname{ms}~\citep{hudson2002generating} and accompanying
+scripts to compute basic statistics.
+% JK: This is a bit of a self-cite fest here, but I think people would
+% wonder what the connection between sgkit and tskit is if we don't
+% explain it. Happy to discuss if anyone doesn't like it, though.
+The \toolname{msprime}~\citep{kelleher2016efficient} simulator took a
+different approach by providing a Python API which gives
+access to the underlying genealogical trees, which often allow
+statistics to be calculated more efficiently than standard
+matrix-based approaches~\citep{ralph2020efficiently}.
+These methods have been subsequently generalised to
+other forms of
+simulation~\citep{kelleher2018efficient,haller2018tree}
+as well as being inferred from observed variation
+data~\citep{kelleher2019inferring,wohns2022unified},
+supported by the open-source \toolname{tskit}
+library~\citep{tskit2023tskit}.
+See~\cite{baumdicker2021efficient} for further discussion on
+computation in population genetic simulations, and the
+\texttt{tskit} software ecosystem.
+% Need to say this somewhere, or people will wonder. This is a
+% rough draft
+While tree-based methods are excellent for simulated data
+and attractive for real-data analysis, they are not a solution
+to all problems. Firstly, not all datasets are appropriate
+for tree inference and secondly, before we infer trees we must
+first perform extensive quality control of the raw data, necessarily
+in variant-matrix form.
+
+\subsubsection{API overview}
+
+Sgkit provides a number of methods for computing statistics in population
+genetics. All methods work on an Xarray dataset that has a number of well-known
+variables defined [TODO: see section...], which for population genetics are the
+genotype calls, stored in the \sgapi{call\_genotype} variable. The methods return a
+new dataset containing variables that store the computed statistics.
+
+Before running the methods, the dataset is usually divided into windows along
+the genome, using the \sgapi{window\_by} functions, which tell sgkit to produce
+per-window statistics. For example, \sgapi{window\_by\_position} creates windows that
+are a fixed number of base pairs, while \sgapi{window\_by\_interval} creates windows
+corresponding to arbitrary user-defined intervals.
+
+It's common in population genetics to group samples into populations, which in
+sgkit are referred to as \emph{cohorts}. There are two types of statistics: one-way
+statistics where there is a single statistic for each cohort, and multi-way
+statistics where there is a statistic between each pair, triple, etc of
+cohorts. [TODO: do we need to say how cohorts are defined?]
+
+The methods for one-way statistics include \sgapi{diversity} for computing mean
+genetic diversity, \sgapi{Tajimas\_D} for computing Tajima’s D, and
+\sgapi{Garud\_H} for
+computing the H1, H12, H123 and H2/H1 statistics~\citep{garud2015recent}.
+
+The methods for multi-way statistics include \sgapi{divergence} and
+\sgapi{Fst} for
+computing mean genetic divergence and $F_{ST}$ (respectively) between pairs of
+cohorts, and \sgapi{pbs} for computing the population branching statistic between
+cohort triples.
+
+\subsubsection{Example}
+
+We converted phased Ag1000G hypotype data in Zarr format
+%[@https://www.malariagen.net/data/ag1000g-phase-2-ar1]
+to sgkit's Zarr format
+using the \sgapi{read\_scikit\_allel\_vcfzarr} function.
+The data contained 1,164
+samples at 39,604,636 sites, and was [TODO] MB on disk before conversion, and
+[TODO] MB after conversion to sgkit's Zarr format. Data for the X chromosome
+was discarded since it was not available for all samples. The conversion took
+[TODO: X minutes Y seconds], including a postprocessing ``rechunk" step to
+ensure that the data was suitably chunked for the subsequent analysis.
+
+We grouped samples into 15 cohorts based on location using simple Pandas and
+Xarray data manipulation functions. We then set up half-overlapping windows
+along the genome using sgkit's \sgapi{window\_by\_position} function with a fixed
+window size of 6000 base pairs, and a step size of 3000 base pairs.
+
+We computed H statistics for one cohort using the \sgapi{Garud\_H} function in sgkit.
+This operation took [TODO: X minutes Y seconds]. Finally, we verified that the
+output was concordant with scikit-allel. [TODO: how hard to reproduce the
+scikit-allel visualization?]
+
+[TODO: summarize the biologically interesting thing here]
+
+\subsection{Quantitative Genetics}
+
+[TODO]
+
+
 \subsection{Enabling technologies}
 
 [High-level summary of where things are in terms of data analysis
@@ -118,7 +264,8 @@ they apply to genomics.
 NumPy~\citep{harris2020array} has been transformational, and provides
 the basic framework for scientific computing in Python.
 
-[ Things to cite: pandas~\citep{mckinney2010data}]
+[ Things to cite: pandas~\citep{mckinney2010data},
+BioNumpy~\citep{rand2022bionumpy}, OME-Zarr~\citep{moore2023ome}]
 
 [NOTE: we may also want a section discussing the n-dimensional array model,
 but I think this section is the right place to discuss that?]
@@ -226,86 +373,6 @@ We use numba because [it's awesome].
 \subsubsection{Heterogenous computing}
 
 GPUs are cool, we support them.
-
-\subsection{Sgkit design principles}
-
-[The previous section has set the stage for the enabling technologies,
-here we talk about how we use them from a high-level, and lay out
-the overall design philosophy. This isn't documentation, rather
-it's the forum where we lay out explicitly early design choices
-and their rationale.]
-
-
-\subsection{Population Genetics}
-
-% Who are population geneticists, and what do they do and what tools
-% do they typically use?
-[TODO: get help from Jerome and Alistair]
-[Existing tools include scikit-allel.]
-
-\subsubsection{API overview}
-
-Sgkit provides a number of methods for computing statistics in population
-genetics. All methods work on an Xarray dataset that has a number of well-known
-variables defined [TODO: see section...], which for population genetics are the
-genotype calls, stored in the \sgapi{call\_genotype} variable. The methods return a
-new dataset containing variables that store the computed statistics.
-
-Before running the methods, the dataset is usually divided into windows along
-the genome, using the \sgapi{window\_by} functions, which tell sgkit to produce
-per-window statistics. For example, \sgapi{window\_by\_position} creates windows that
-are a fixed number of base pairs, while \sgapi{window\_by\_interval} creates windows
-corresponding to arbitrary user-defined intervals.
-
-It's common in population genetics to group samples into populations, which in
-sgkit are referred to as \emph{cohorts}. There are two types of statistics: one-way
-statistics where there is a single statistic for each cohort, and multi-way
-statistics where there is a statistic between each pair, triple, etc of
-cohorts. [TODO: do we need to say how cohorts are defined?]
-
-The methods for one-way statistics include \sgapi{diversity} for computing mean
-genetic diversity, \sgapi{Tajimas\_D} for computing Tajima’s D, and
-\sgapi{Garud\_H} for
-computing the H1, H12, H123 and H2/H1 statistics~\citep{garud2015recent}.
-
-The methods for multi-way statistics include \sgapi{divergence} and
-\sgapi{Fst} for
-computing mean genetic divergence and $F_{ST}$ (respectively) between pairs of
-cohorts, and \sgapi{pbs} for computing the population branching statistic between
-cohort triples.
-
-\subsubsection{Example}
-
-We converted phased Ag1000G hypotype data in Zarr format
-%[@https://www.malariagen.net/data/ag1000g-phase-2-ar1]
-to sgkit's Zarr format
-using the \sgapi{read\_scikit\_allel\_vcfzarr} function.
-The data contained 1,164
-samples at 39,604,636 sites, and was [TODO] MB on disk before conversion, and
-[TODO] MB after conversion to sgkit's Zarr format. Data for the X chromosome
-was discarded since it was not available for all samples. The conversion took
-[TODO: X minutes Y seconds], including a postprocessing ``rechunk" step to
-ensure that the data was suitably chunked for the subsequent analysis.
-
-We grouped samples into 15 cohorts based on location using simple Pandas and
-Xarray data manipulation functions. We then set up half-overlapping windows
-along the genome using sgkit's \sgapi{window\_by\_position} function with a fixed
-window size of 6000 base pairs, and a step size of 3000 base pairs.
-
-We computed H statistics for one cohort using the \sgapi{Garud\_H} function in sgkit.
-This operation took [TODO: X minutes Y seconds]. Finally, we verified that the
-output was concordant with scikit-allel. [TODO: how hard to reproduce the
-scikit-allel visualization?]
-
-[TODO: summarize the biologically interesting thing here]
-
-\subsection{Statistical Genetics}
-
-[TODO]
-
-\subsection{Quantitative Genetics}
-
-[TODO]
 
 \section{Discussion}
 
