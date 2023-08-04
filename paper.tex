@@ -108,23 +108,37 @@ and their rationale.]
 \subsection{Statistical Genetics}
 Statistical genetics is largely concerned with disease associations
 in humans, and the success of genome wide association studies (GWAS) has led
-to explosive growth in the field. Sample size is the single most
+to explosive growth in the field~\citep{uffelmann2021genome}.
+Sample size is the single most
 important factor in driving statistical power, and
-genotype array data has been collected for millions of samples [REFS].
-Because of the relative heterogenity of the data sources and
+genotype array data has been collected for millions of samples
+[more explanation and citations].
+GWAS typically use genotype array data because of
+its continuing cost-effectiveness, although there has been
+exome~\citep{lek2016analysis,backman2021exome}
+and large-scale whole genome sequence data is becoming increasingly
+available~\citep{halldorsson2022sequences}.
+Genotype array data is usually imputed using software such
+as BEAGLE~\citep{browning2018one} or IMPUTE~\citep{howie2011genotype}.
+% Mention phasing?
+
+The \toolname{plink}~\citep{purcell2007plink} package is the most
+commonly used software for GWAS and has a large range of functionality
+required for quality control, association testing and analysis.
+More recently software packages have emerged specifically designed
+to deal with the very large sample sizes that are becoming
+more prevalant, for example SAIGE~\citep{zhou2018efficiently}
+Bolt-LMM~\citep{loh2015efficient}
+and
+REGENIE~\citep{mbatchou2021computationally} are designed to
+detect associations in very large cohorts.
+The Hail software [citation] has been used [to do lots of things]
+
+Because of the relative homogenity of the data sources and
 required tasks, programs like \toolname{plink} are able to provide
 an end-to-end analysis pipline from the source genotype data, quality
 control and associations via Manhattan plots.
 
-Early studies ecompassed X samples, but now we have UK Biobank
-and large meta analyses [GIANT height paper]. Single computer platforms
-like plink are no longer sufficient, so we need things like Hail.
-Hail has enabled a whole bunch of stuff. Recently we have been moving
-Whole Exome [UKB whole exome paper]
-and even WGS data [UKB whole genome paper] for hundreds of thousands
-of samples, raising the volumes of data to be processed even higher.
-
-[TODO]
 
 \subsection{Population Genetics}
 [Things to work in here:
@@ -154,6 +168,7 @@ thousands of different species.
 [THIS IS A ROUGH DRAFT: I'm just getting in a paragraph here with citations
 to tools/packages that are important in PopGen. We can get a narrative
 through it later.]
+\citep{excoffier2006computer}
 Because of the relatively small volumes of data and the variety
 of different organisms, statistical analysis of population genetic
 data has tended to be done by custom scripts. Tools such
@@ -172,6 +187,9 @@ and \toolname{pylibseq}~\citep{thornton2003libsequence}
 libraries provide efficient programmatic
 access to a rich suite of population genetic statistics, but have limited
 support for parallelisation.
+
+STRUCTURE~\citep{pritchard2000inference}
+ADMIXTOOLS~\citep{patterson2012ancient}
 
 % Discussion of simulated data and tree-based stuff.
 Population geneticists are often interested in comparing with simulated data.
