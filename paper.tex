@@ -99,11 +99,38 @@ as possible as to the underlying implementation of these arrays,
 which can be stored in-memory as NumPy arrays, in chunked
 compressed on-disk storage as Zarr arrays, or ...
 
+
+
 [In later sections we discuss enabling technologies in detail,
 here we talk about how we use them from a high-level, and layout
 the overall design philosophy. This isn't documentation, rather
 it's the forum where we lay out explicitly early design choices
 and their rationale.]
+
+VCF conversion is handled using
+\toolname{cyvcf2}~\citep{pedersen2017cyvcf2}.
+[TODO any citations for these?]
+BGEN using \toolname{cbgen}.
+Plink support using \toolname{bed\_reader}
+
+[Text from proposal]
+
+The rapid evolution of supporting projects in the PyData ecosystem, including Dask for
+distributed processing, Xarray for coordinated operations on groups of labeled
+n-dimensional arrays, Zarr for n-dimensional array storage on cloud object
+stores, and Numba for hardware acceleration. We’ve designed sgkit from the
+ground up to tightly integrate with these libraries so that we can benefit from
+the many improvements being made upstream, making the PyData ecosystem
+accessible to statistical geneticists.
+
+We've also defined a Zarr representation for efficient storage of this data.
+We’ve designed an Xarray dataset-based data model which can be populated from
+any of the file formats above, and against which library methods are
+implemented. These methods include variant and sample quality control,
+population structure analysis, genome-wide selection scans, and genome-wide
+association analyses, including a novel implementation of the recently
+developed and state-of-the-art REGENIE algorithm.
+
 
 \subsection{Statistical Genetics}
 Statistical genetics is largely concerned with disease associations
@@ -452,6 +479,34 @@ format. [Could talk about
 how early GA4GH APIs failed because they didn't really consider
 efficiency? Converting VCF to JSON was never going to be efficient?
 Might not be worth getting into]
+
+\item Users of sgkit will be able to perform data manipulation, analysis, and
+visualization using familiar PyData tools, with only domain-specific methods
+requiring domain-specific APIs. They will also benefit from interactive
+performance for medium-sized data and the ability to scale out to biobank-scale
+data within the same library. 
+
+\item
+Methods developers won’t have to reimplement undifferentiated functionality
+like defining a custom data model, reading from files into that data model, and
+validating data. Instead, they can implement their novel methods against
+sgkit’s data model and instantly gain adjacent functionality and accessibility
+to sgkit’s user community. This is well illustrated by our implementation of
+the state-of-the-art REGENIE algorithm, which requires less than 1000 lines of
+Python code (including documentation) and has comparable performance to the
+original C++. Further, many key methods in statistical genetics operate on GWAS
+summary statistics, and integrating individual level data with external summary
+statistics is an increasingly important strategy which other toolkits have not
+yet formalized.
+
+\item sgkit makes it easier for researchers to
+make their whole analysis pipeline available in a reproducible Jupyter
+notebook. Most statistical genetics papers describe the collection of
+command-line utilities used in their methods section, and a select few make a
+workflow connecting the command-line utilities available. Users of sgkit can
+work within a Jupyter notebook without having to call out to command-line
+utilities, making the journey from raw data to scientific findings easier to
+represent in a single notebook.
 
 \end{itemize}
 
