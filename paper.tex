@@ -171,6 +171,7 @@ and
 REGENIE~\citep{mbatchou2021computationally} are designed to
 detect associations in very large cohorts.
 The Hail software [citation] has been used [to do lots of things]
+[Mention qgg somewhere\citep{rohde2020qgg}]
 
 Because of the relative homogenity of the data sources and
 required tasks, programs like \toolname{plink} are able to provide
@@ -319,7 +320,6 @@ scikit-allel visualization?]
 [TODO: summarize the biologically interesting thing here]
 
 \subsection{Quantitative Genetics}
-
 [TODO lacking a lot of detail here in terms of compute and software.
 https://github.com/pystatgen/sgkit-publication/issues/26]
 
@@ -328,12 +328,45 @@ the link between continuously variable quantitative traits
 with complex genetics~\citep{hill2010understanding}.
 Through decades of selective breeding, quantitative genetics methods have
 led to X-fold increases in milk yield [etc, citations].
-
-Pedigrees are a vital element of quantitative genetics.
-
+They are also applied to
+natural populations~\citep{wilson2010ecologist}
 Quantitative genetics methods are used across a wide variety of
 organisms, with many species of argicultural interest having
 variable ploidy levels etc.
+
+Much of classical quantitative genetics uses observed pedigree structure
+in mixed models to partition the variance of phenotypes, without
+reference to any genomic data.
+Fitting generalised linear mixed models (LMMs) using
+software such as ASReml~\citep{butler2009asreml}
+and MCMCglmm~\citep{hadfield2010mcmc} require only the pedigree
+information and trait data.
+Genetic marker data~\citep{bernardo2008molecular} of various
+types (RFLPs, microsats etc) required statistical models.
+BLUPs include genetic information~\citep{endelman2011ridge}.
+
+Many packages are available in R [cites]. Because much of the computation
+in quantitative genetics has been around solving
+general statistical models using linear algebra, R is very good.
+However, with larger and larger samples sizes, particularly
+in agricultural applications.
+For example,
+the 1000 bull genomes project~\citep{hayes20191000}
+comprises close to 7000 genomes, embedded in multi-generation pedigrees
+with millions of animals and extensive SNP array genotype and phenotype
+data \citep[e.g.][]{cesarani2022mulibreed}.
+[Methods are hitting a computational wall]
+
+Much of the functionality required for quantitative genetics work
+is therefore provided by access to efficient and scalable linear algebra
+routines (a core element of the PyData ecosystem), the ability
+to access genetic variation data from sources such as plink and VCF,
+and some specialised routines to handle pedigree data and to
+estimate relatedness matrices. Sgkit provides [this], with a particular
+focus on supporting autopolyploids.
+
+
+
 
 \subsection{Enabling technologies}
 
