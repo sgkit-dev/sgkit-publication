@@ -8,8 +8,10 @@ simulated_chrom_1.ts.tsz:
 %.ts: %.ts.tsz
 	tsunzip -k $<
 
+.PRECIOUS: %.bcf
 %.bcf: %.ts
 	python3 -m tskit vcf $< | bcftools view -O b > $@
+	bcftools index $@
 
 %.sgz: %.bcf
 	python3 ../src/convert.py vcf-to-sgkit-zarr $< $@
