@@ -35,25 +35,29 @@ def process_files(source_pattern, output, suffix):
     for ts_path in pathlib.Path().glob(source_pattern):
         ts = tskit.load(ts_path)
         click.echo(f"{ts_path} n={ts.num_individuals}, m={ts.num_sites}")
-        vcf_path = ts_path.with_suffix(".bcf")
-        sg_path = ts_path.with_suffix(".sgz")
-        ds = sg.load_dataset(sg_path)
-        assert ts.num_samples // 2 == ds.samples.shape[0]
-        assert ts.num_sites == ds.variant_position.shape[0]
-        assert np.array_equal(ds.variant_position, ts.tables.sites.position.astype(int))
-        data.append(
-            {
-                "sequence_length": int(ts.sequence_length),
-                "num_samples": ds.samples.shape[0],
-                "num_sites": ts.num_sites,
-                "tsk_size": to_GiB(du(ts_path)),
-                "bcf_size": to_GiB(du(vcf_path)),
-                "sgkit_size": to_GiB(du(sg_path)),
-            }
-        )
+        try:
+            vcf_path = ts_path.with_suffix(".bcf")
+            sg_path = ts_path.with_suffix(".sgz")
+            ds = sg.load_dataset(sg_path)
+            assert ts.num_samples // 2 == ds.samples.shape[0]
+            assert ts.num_sites == ds.variant_position.shape[0]
+            assert np.array_equal(ds.variant_position, ts.tables.sites.position.astype(int))
+            data.append(
+                {
+                    "sequence_length": int(ts.sequence_length),
+                    "num_samples": ds.samples.shape[0],
+                    "num_sites": ts.num_sites,
+                    "tsk_size": to_GiB(du(ts_path)),
+                    "bcf_size": to_GiB(du(vcf_path)),
+                    "sgkit_size": to_GiB(du(sg_path)),
+                }
+            )
 
-        df = pd.DataFrame(data)
-        df.to_csv(output)
+            df = pd.DataFrame(data)
+            df.to_csv(output)
+        except Exception as e:
+            click.echo(f"Skipping due to {e}")
+
     print(df)
 
 
