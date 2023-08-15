@@ -1,4 +1,5 @@
 BCFTOOLS=../software/bcftools
+BCFTOOLS_PLUGINS=../software/bcftools-1.18/plugins 
 
 simulated_chrom_21.ts.tsz:
 	wget https://zenodo.org/record/7702392/files/simulated_chrom_21.ts.tsz
@@ -15,6 +16,10 @@ simulated_chrom_1.ts.tsz:
 	python3 -m tskit vcf $< | ${BCFTOOLS} view -O b > $@
 	${BCFTOOLS} index $@
 
+# Compute some minimal INFO summaries to support the af-dist computation
+%.tags.bcf: %.bcf
+	BCFTOOLS_PLUGINS=${BCFTOOLS_PLUGINS} ${BCFTOOLS} \
+			 +fill-tags $< -Ob -o $@ -- -t AN,AC,AF
 %.sgz: %.bcf
 	python3 ../src/convert.py vcf-to-sgkit-zarr $< $@
 
