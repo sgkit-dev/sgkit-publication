@@ -22,10 +22,6 @@ def du(file):
     return get_dir_size(file)
 
 
-def to_GiB(num_bytes):
-    return num_bytes / (1024**3)
-
-
 @click.command()
 @click.argument("source_pattern", type=str)
 @click.argument("output", type=click.Path())
@@ -47,13 +43,13 @@ def process_files(source_pattern, output, suffix):
                     "sequence_length": int(ts.sequence_length),
                     "num_samples": ds.samples.shape[0],
                     "num_sites": ts.num_sites,
-                    "tsk_size": to_GiB(du(ts_path)),
-                    "bcf_size": to_GiB(du(vcf_path)),
-                    "sgkit_size": to_GiB(du(sg_path)),
+                    "tsk_size": du(ts_path),
+                    "bcf_size": du(vcf_path),
+                    "sgkit_size": du(sg_path),
                 }
             )
 
-            df = pd.DataFrame(data)
+            df = pd.DataFrame(data).sort_values("num_samples")
             df.to_csv(output)
         except Exception as e:
             click.echo(f"Skipping due to {e}")

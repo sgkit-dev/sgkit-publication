@@ -33,3 +33,9 @@ clean:
 mrproper: clean
 	rm -f *.ps *.pdf
 
+
+plot_data/data-scaling.csv:
+	python3 src/collect_data.py process-files 'data/chr21_n10*.ts'
+
+
+
