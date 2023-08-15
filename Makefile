@@ -37,5 +37,6 @@ mrproper: clean
 plot_data/data-scaling.csv:
 	python3 src/collect_data.py process-files 'data/chr21_n10*.ts'
 
-
-
+# TODO make some substitution rules for this later
+figures/data-scaling.pdf: plot_data/data-scaling.csv src/plot.py
+	python3 src/plot.py data-scaling $< $@
