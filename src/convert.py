@@ -52,6 +52,8 @@ def verify_sgkit_conversion(trees_file, sg_dataset):
     ds_iter = iter(ds.call_genotype)
     with click.progressbar(range(ts.num_sites)) as bar:
         for j in bar:
+            # This is probably horribly inefficient because it isn't
+            # doing things chunk-wise
             row = next(ds_iter, None)
             var = next(ts_iter, None)
             G = row.to_numpy().reshape(ts.num_samples)

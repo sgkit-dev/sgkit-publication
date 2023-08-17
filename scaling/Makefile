@@ -11,7 +11,7 @@ simulated_chrom_1.ts.tsz:
 %.ts: %.ts.tsz
 	tsunzip -k $<
 
-.PRECIOUS: %.bcf
+.PRECIOUS: data/%.bcf
 %.bcf: %.ts
 	python3 -m tskit vcf $< | ${BCFTOOLS} view -O b > $@
 	${BCFTOOLS} index $@
@@ -20,6 +20,8 @@ simulated_chrom_1.ts.tsz:
 %.tags.bcf: %.bcf
 	BCFTOOLS_PLUGINS=${BCFTOOLS_PLUGINS} ${BCFTOOLS} \
 			 +fill-tags $< -Ob -o $@ -- -t AN,AC,AF
+	${BCFTOOLS} index $@
+
 %.sgz: %.bcf
 	python3 ../src/convert.py vcf-to-sgkit-zarr $< $@
 
