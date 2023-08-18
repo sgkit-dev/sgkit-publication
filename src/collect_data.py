@@ -36,6 +36,9 @@ class ProcessTimeResult:
 
 
 def run_bcftools_afdist(path, num_threads, debug=False):
+    # FIXME this doesn't look like it's capturing time
+    # time spent by threads correctly
+
     # S: Total number of CPU-seconds used by the system on behalf of
     #    the process (in kernel mode), in seconds.
     # U: Total number of CPU-seconds that the process used directly
@@ -182,20 +185,12 @@ def file_size(source_pattern, output, suffix, debug):
     print(df)
 
 
-@click.command()
-def tmp():
-    ds = sg.load_dataset("scaling/data/chr21_n10.sgz")
-    print(ds)
-    ds = sg.variant_stats(ds)
-    print(get_prob_dist(ds))
-
 
 @click.group()
 def cli():
     pass
 
 
-cli.add_command(tmp)
 cli.add_command(file_size)
 cli.add_command(processing_time)
 
