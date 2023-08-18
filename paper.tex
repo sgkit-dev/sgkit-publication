@@ -144,10 +144,16 @@ developed and state-of-the-art REGENIE algorithm.
 
 
 \begin{figure}
-% \includegraphics[width=\linewidth]{diagrams/sgkit_xarray_diagram.pdf}
+\includegraphics[width=6cm]{figures/data-scaling}
 \caption{Scaling properties of with large genomic data.
-Subsets of the simulations of~\citep{anderson2023genes}}
-\label{fig:data_scaling}
+A) The total storage size required for storing a file in BCF format
+(encoded by \texttt{bcftools view -O b}), and \texttt{sgkit}'s zarr
+format (using XXX).
+B) The elapsed wall-clock time required to calculate [DESCRIBE]
+using the \texttt{af-dist} plugin for \texttt{bcftools} and
+an equivalent calculation using \texttt{sgkit}.
+Subsets of the simulations of~\citep{anderson2023genes} are used.
+\label{fig:data_scaling}}
 \end{figure}
 
 
