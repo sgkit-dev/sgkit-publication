@@ -1,14 +1,14 @@
 all: paper.pdf
 
 paper.aux: paper.tex
-	pdflatex paper.tex
+	pdflatex -shell-escape paper.tex
 
 paper.bbl: paper.aux paper.bib
 	bibtex paper
-	pdflatex paper.tex
+	pdflatex -shell-escape paper.tex
 
 paper.pdf: paper.bbl
-	pdflatex paper.tex
+	pdflatex -shell-escape paper.tex
 
 paper.ps: paper.dvi
 	dvips paper
@@ -27,9 +27,18 @@ clean:
 	rm -f *.pdf
 	rm -f *.log *.dvi *.aux
 	rm -f *.blg *.bbl
-	rm -f *.eps *.[1-9]
-	rm -f src/*.mpx *.mpx
+	rm -fR _minted*
 
 mrproper: clean
 	rm -f *.ps *.pdf
 
+
+plot_data/data-scaling.csv:
+	python3 src/collect_data.py file-size 'scaling/data/chr21_n10*.ts' $@
+
+# TODO make rule for time-scaling
+
+# TODO make some substitution rules for this later
+figures/data-scaling.pdf: plot_data/data-scaling.csv src/plot.py
+	python3 src/plot.py data-scaling plot_data/data-scaling.csv  \
+		plot_data/time-scaling.csv figures/data-scaling.pdf
