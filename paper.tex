@@ -8,6 +8,12 @@
 % Please note that these options may affect formatting.
 % Additionally, the use of the \newcommand function should be limited.
 
+\usepackage{minted}
+\usepackage{tcolorbox}
+\usepackage{etoolbox}
+% \BeforeBeginEnvironment{minted}{\begin{tcolorbox}}
+% \AfterEndEnvironment{minted}{\end{tcolorbox}}
+
 % Systematise how we typeset elements of the API (functions, variables, etc)
 \newcommand{\sgapi}[1]{\texttt{#1}}
 \newcommand{\toolname}[1]{\texttt{#1}}
@@ -144,7 +150,35 @@ developed and state-of-the-art REGENIE algorithm.
 
 
 \begin{figure}
-\includegraphics[width=6cm]{figures/data-scaling}
+\begin{tabular}{cc}
+\includegraphics[width=6cm]{figures/data-scaling} &
+\begin{tcolorbox}[width=7cm]
+\begin{minted}[fontsize=\footnotesize]{python}
+def get_prob_dist(ds, num_bins=10):
+    bins = np.linspace(0, 1.0, num_bins + 1)
+    bins[-1] += 0.01
+    af = ds.variant_allele_frequency.values[:, 1]
+    pRA = 2 * af * (1 - af)
+    pAA = af * af
+    hets = ds.variant_n_het.values
+    homs = ds.variant_n_hom_alt.values
+    a = np.bincount(
+        np.digitize(pRA, bins),
+        weights=hets,
+        minlength=num_bins + 1)
+    b = np.bincount(
+        np.digitize(pAA, bins),
+        weights=homs,
+        minlength=num_bins + 1)
+    count = (a + b).astype(int)
+    return pd.DataFrame({
+        "start": bins[:-1],
+        "stop": bins[1:],
+        "prob_dist":
+        count[1:]})
+\end{minted}
+\end{tcolorbox}
+\end{tabular}
 \caption{Scaling properties of with large genomic data.
 A) The total storage size required for storing a file in BCF format
 (encoded by \texttt{bcftools view -O b}), and \texttt{sgkit}'s zarr
@@ -153,6 +187,9 @@ B) The elapsed wall-clock time required to calculate [DESCRIBE]
 using the \texttt{af-dist} plugin for \texttt{bcftools} and
 an equivalent calculation using \texttt{sgkit}.
 Subsets of the simulations of~\citep{anderson2023genes} are used.
+C) Source code for the allele frequency distribution calculation
+in sgkit.
+[NOTE:draft layout. ]
 \label{fig:data_scaling}}
 \end{figure}
 

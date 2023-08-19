@@ -1,14 +1,14 @@
 all: paper.pdf
 
 paper.aux: paper.tex
-	pdflatex paper.tex
+	pdflatex -shell-escape paper.tex
 
 paper.bbl: paper.aux paper.bib
 	bibtex paper
-	pdflatex paper.tex
+	pdflatex -shell-escape paper.tex
 
 paper.pdf: paper.bbl
-	pdflatex paper.tex
+	pdflatex -shell-escape paper.tex
 
 paper.ps: paper.dvi
 	dvips paper
@@ -27,8 +27,7 @@ clean:
 	rm -f *.pdf
 	rm -f *.log *.dvi *.aux
 	rm -f *.blg *.bbl
-	rm -f *.eps *.[1-9]
-	rm -f src/*.mpx *.mpx
+	rm -fR _minted*
 
 mrproper: clean
 	rm -f *.ps *.pdf
