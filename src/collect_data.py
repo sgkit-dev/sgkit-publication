@@ -72,6 +72,13 @@ def get_prob_dist(ds, num_bins=10):
     count = (a + b).astype(int)
     return pd.DataFrame({"start": bins[:-1], "stop": bins[1:], "prob_dist": count[1:]})
 
+def _sgkit_afdist_work(ds_path):
+    ds = sg.load_dataset(ds_path)
+    ds = sg.variant_stats(ds, merge=False).compute()
+    # print(ds)
+    df = get_prob_dist(ds)
+    # print(df)
+    return df
 
 def sgkit_afdist_worker(ds_path, num_threads, debug, conn):
     before = time.time()
@@ -79,9 +86,7 @@ def sgkit_afdist_worker(ds_path, num_threads, debug, conn):
         processes=False, threads_per_worker=num_threads
     ) as client:
         print(client)
-        ds = sg.load_dataset(ds_path)
-        ds = sg.variant_stats(ds)
-        df = get_prob_dist(ds)
+        df = _sgkit_afdist_work(ds_path)
     wall_time = time.time() - before
     cpu_times = psutil.Process().cpu_times()
     print(cpu_times)
