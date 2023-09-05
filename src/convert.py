@@ -31,11 +31,12 @@ def vcf_to_sgkit_zarr(
     """
     Convert the input from vcf/bcf to sgkit
     """
-    client = dask.distributed.Client(n_workers=16, threads_per_worker=1)
+    client = dask.distributed.Client(n_workers=8, threads_per_worker=1)
     print(client)
     # Tried this, doesn't work:
     # with dask.diagnostics.ProgressBar():
-    sgkit.io.vcf.vcf_to_zarr(infile, outfile)
+    # Need temp_chunk_length for 1M samples.
+    sgkit.io.vcf.vcf_to_zarr(infile, outfile, temp_chunk_length=100)
     print("done")
 
 
