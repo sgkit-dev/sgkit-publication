@@ -148,6 +148,42 @@ developed and state-of-the-art REGENIE algorithm.
 \label{fig:data_model}
 \end{figure}
 
+\subsection{Scaling up interactive analysis}
+The storage and analysis of datasets consisting of hundreds of
+thousands of genomes presents major challenges.
+Fig.~\ref{fig:data_scaling} shows the performance of \toolname{sgkit}
+in terms of storage space and compute performance with increasing
+numbers of samples, contrasting with the standard BCF file format
+and \toolname{bcftools} utility.
+The dataset used is a subset of the
+ultra-realistic simulations of 1.4 million French-Canadians
+provided by~\citet{anderson2023genes}, which is freely avilable
+and has been shown to
+accurately capture fine-scaled demographic structure. Although
+simulations can never capture the full richness of real data,
+this resource certainly reflects the patterns of allele frequency
+and correlation structure that we would expect in large-scale
+human studies, and provides a useful and reproducable benchmark.
+Note that as we increase the sample size, the number of variant
+sites also increases [following basic popgen principles?].
+
+Storing the data in a format that is compact and useful for computation is a
+central challenge. Fig.~\ref{fig:data_scaling}A shows that the
+compressed-chunked-array Zarr format used by \toolname{sgkit} results
+in significantly smaller file-sizes than BCF (encoded using
+\texttt{bcftools view -O b}; we used \toolname{bcftools}
+version 1.18 throughout). At the extreme, when we have 1M
+samples, we require XGB for the BCF file and a total of YGB
+for the \toolname{sgkit} version. Note that under the default
+directory based Zarr store this results in XX files of around
+y KB each to store the chunks. Different Zarr storage engines
+can be used, varying from a ZipFile which keeps the entire
+dataset in a single file to a cloud store [details] which stores
+chunks in [a cloud store]. The chunk size is a parameter and
+can be tuned. [bit more detail here].
+
+
+Fundamentally, VCF (and BCF) are unsuited to large-scale computation.
 
 \begin{figure}
 \begin{tabular}{cc}
@@ -192,6 +228,7 @@ in sgkit.
 [NOTE:draft layout. ]
 \label{fig:data_scaling}}
 \end{figure}
+
 
 
 \subsection{Statistical Genetics}
