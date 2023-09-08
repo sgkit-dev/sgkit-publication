@@ -152,14 +152,16 @@ developed and state-of-the-art REGENIE algorithm.
 The storage and analysis of datasets consisting of hundreds of
 thousands of genomes presents major challenges.
 Fig.~\ref{fig:data_scaling} shows the performance of \toolname{sgkit}
-in terms of storage space and compute performance with increasing
+in terms of storage space and computation time  on a simple benchmark (see
+below for details) with increasing
 numbers of samples, contrasting with the standard BCF file format
 and \toolname{bcftools} utility.
 The dataset used is a subset of the
 ultra-realistic simulations of 1.4 million French-Canadians
 provided by~\citet{anderson2023genes}, which is freely avilable
 and has been shown to
-accurately capture fine-scaled demographic structure. Although
+accurately reflect fine-scaled demographic structure.
+Although
 simulations can never capture the full richness of real data,
 this resource certainly reflects the patterns of allele frequency
 and correlation structure that we would expect in large-scale
@@ -167,8 +169,10 @@ human studies, and provides a useful and reproducable benchmark.
 Note that as we increase the sample size, the number of variant
 sites also increases [following basic popgen principles?].
 
-Storing the data in a format that is compact and useful for computation is a
-central challenge. Fig.~\ref{fig:data_scaling}A shows that the
+The scale of present-day genomic data means that compact
+storage is of paramount importance, and reductions in storage space
+can make a significant difference in overall costs.
+Fig.~\ref{fig:data_scaling}A shows that the
 compressed-chunked-array Zarr format used by \toolname{sgkit} results
 in significantly smaller file-sizes than BCF (encoded using
 \texttt{bcftools view -O b}; we used \toolname{bcftools}
@@ -181,9 +185,6 @@ can be used, varying from a ZipFile which keeps the entire
 dataset in a single file to a cloud store [details] which stores
 chunks in [a cloud store]. The chunk size is a parameter and
 can be tuned. [bit more detail here].
-
-
-Fundamentally, VCF (and BCF) are unsuited to large-scale computation.
 
 \begin{figure}
 \begin{tabular}{cc}
@@ -228,6 +229,103 @@ in sgkit.
 [NOTE:draft layout. ]
 \label{fig:data_scaling}}
 \end{figure}
+
+The scale of modern genomic datasets also means that calculations must
+be parallelised. This is illustrated in Fig.~\ref{fig:data_scaling}B,
+where we compare the performance of a simple calculation requiring
+the examination of all genotypes using \toolname{bcftools}
+and \texttt{sgkit}. Interactive analysis is only possible through
+parallelisation, as optimised single-threaded code
+is simply not fast enough.
+Although it is relatively straightforward to split calculations across
+the genome using tools like \toolname{bcftools}, the process
+is quite manual, and often involves working with HPC schedulers
+or workflow managers [this is very rough, just seeing where it goes].
+Splitting the workload \emph{by sample} however, is much more
+difficult. Parallelisation by variant and sample is an inherent
+part of \texttt{sgkit}'s design---the variant matrix is chunked
+in two dimensions, and Dask transparently maps computations to these
+chunks.
+Fig.~\ref{fig:data_scaling}B shows how \texttt{sgkit} scales
+on a single server, and how computation time decreases as we use
+more threads. In contrast, using threads with
+\toolname{bcftools} (via the XXX option) makes almost no difference
+because computational model is inherently sequential, and additional threads
+are only used to facilitate decompression.
+As we see in section XXX,
+a major advantage of \texttt{sgkit} is that it not only supports
+scaling \emph{up} within a server, but also scaling \emph{out}
+across multiple servers.
+
+The ability to
+run pre-defined analyses interactively on very large datasets by
+transparently distributing across a cluster is a major boost to
+researcher productivity. The ability to define one's \emph{own}
+analyses using familiar Python data-science tools and libraries,
+and to similarly distribute across a cluster (with single-threaded
+speed close to native compiled code) is a game-changer [say better].
+Fig.~\ref{fig:data_scaling}C shows the code used in the benchmark
+for \toolname{sgkit} in Fig.~\ref{fig:data_scaling}B. The heavy
+computation here is done in the \texttt{variant\_stats(ds)} function,
+which computes a set of variables summarising each of the variants
+by examining the entire variant matrix.
+These variables are mostly one-dimensional, and can thefore
+be processed `in-core' using numpy methods very effectively.
+For example, we \texttt{variant\_n\_het} the number of heterozygous samples
+in Fig.~\ref{fig:data_scaling}C. For $n=10^6$ we have X million
+variants, and the overall size of the data is Y MiB which
+comfortably fits in memory. Thus, the
+\texttt{get\_prob\_dist} function shown here reproduces the functionality
+of the \toolname{bcftools +afdist} plugin, which must be compiled and
+requires detailed knowledge of \toolname{htslib} APIs, using standard
+Python data science tools, and with similar performance.
+
+Reducing the variant matrix to summaries that are separately stored
+is the standard practise when using VCF/BCF files, for precisely the
+reason of avoiding the need to examine the entire genotype matrix.
+These are most often stored as ``INFO`` fields.
+Indeed, \toolname{bcftools +afdist} requires that the \texttt{AC}
+INFO field is present (but does not raise an error
+if it doesn't). Because of the row-based storage approach of
+VCF/BCF, adding any new fields to a file means reading in the entire
+file, and writing out a full copy. For our $n=10^6$ samples example,
+computing \texttt{AC} value required XX hours.
+In contrast, the columnar storage approach (see section XXX) used
+in \toolname{sgkit} means that we can \emph{update} an existing
+dataset with this derived information, without altering the existing
+on-disk information.
+Computing the
+\texttt{variant\_allele\_counts} variable using
+40 threads  required XX minutes, and updating the existing dataset required
+0.X seconds.
+
+The shortcomings of VCF as a storage format and computational
+substrate are well known, and as we discuss in Section XXX,
+storing genetic variation data is a complex issue
+and the subject of substantial ongoing research. The point of this
+section is not to establish that the approach taken by \toolname{sgkit}
+is state-of-the-art, but to contrast the approach we have taken
+with VCF (as the standard storage format) and to demonstrate
+the scalability and efficiency of \toolname{sgkit} as an analysis
+platform.
+
+
+\subsection{Storing genetic variation data}
+
+It is important to note that this example is something of a best-base
+scenario in terms genomic dataset storage, in that we are only
+storing genotype data (per sample, per variant),
+and, because it is error-free, is very
+highly compressible. Noisier genotypes will not compress quite
+so well, and storing less compressible data (such as genotype
+quality values) results in a large increase in the overall
+storage size. This is essentially unavoidable, but the Zarr-based
+approach still has some significant advantages over VCF/BCF
+[basically we can store separately and come up with distinct
+compression strategies based on the data type. Dunno if we
+want to get into this here. This is a complex topic with
+a lot of existing work which we should review and reference,
+and this is maybe not the place to do it.].
 
 
 
