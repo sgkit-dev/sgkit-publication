@@ -105,6 +105,11 @@ as possible as to the underlying implementation of these arrays,
 which can be stored in-memory as NumPy arrays, in chunked
 compressed on-disk storage as Zarr arrays, or ...
 
+% Perhaps this should be mentioned in the QuantGen section?
+The data layout used here is compatible with the ChromaX
+breeding program simulator~\citep{younis2023chromax}, which
+is leveraging other aspects of the PyData ecosystem to
+fully utilise modern parallel hardware.
 
 
 [In later sections we discuss enabling technologies in detail,
@@ -148,6 +153,43 @@ developed and state-of-the-art REGENIE algorithm.
 \label{fig:data_model}
 \end{figure}
 
+\subsection{Scaling up interactive analysis}
+The storage and analysis of datasets consisting of hundreds of
+thousands of genomes presents major challenges.
+Fig.~\ref{fig:data_scaling} shows the performance of \toolname{sgkit}
+in terms of storage space and computation time  on a simple benchmark (see
+below for details) with increasing
+numbers of samples, contrasting with the standard BCF file format
+and \toolname{bcftools} utility.
+The dataset used is a subset of the
+ultra-realistic simulations of 1.4 million French-Canadians
+provided by~\citet{anderson2023genes}, which is freely avilable
+and has been shown to
+accurately reflect fine-scaled demographic structure.
+Although
+simulations can never capture the full richness of real data,
+this resource certainly reflects the patterns of allele frequency
+and correlation structure that we would expect in large-scale
+human studies, and provides a useful and reproducable benchmark.
+Note that as we increase the sample size, the number of variant
+sites also increases [following basic popgen principles?].
+
+The scale of present-day genomic data means that compact
+storage is of paramount importance, and reductions in storage space
+can make a significant difference in overall costs.
+Fig.~\ref{fig:data_scaling}A shows that the
+compressed-chunked-array Zarr format used by \toolname{sgkit} results
+in significantly smaller file-sizes than BCF (encoded using
+\texttt{bcftools view -O b}; we used \toolname{bcftools}
+version 1.18 throughout). At the extreme, when we have 1M
+samples, we require XGB for the BCF file and a total of YGB
+for the \toolname{sgkit} version. Note that under the default
+directory based Zarr store this results in XX files of around
+y KB each to store the chunks. Different Zarr storage engines
+can be used, varying from a ZipFile which keeps the entire
+dataset in a single file to a cloud store [details] which stores
+chunks in [a cloud store]. The chunk size is a parameter and
+can be tuned. [bit more detail here].
 
 \begin{figure}
 \begin{tabular}{cc}
@@ -192,6 +234,86 @@ in sgkit.
 [NOTE:draft layout. ]
 \label{fig:data_scaling}}
 \end{figure}
+
+The scale of modern genomic datasets also means that calculations must
+be parallelised. This is illustrated in Fig.~\ref{fig:data_scaling}B,
+where we compare the performance of a simple calculation requiring
+the examination of all genotypes using \toolname{bcftools}
+and \texttt{sgkit}. Interactive analysis is only possible through
+parallelisation, as optimised single-threaded code
+is simply not fast enough.
+Although it is relatively straightforward to split calculations across
+the genome using tools like \toolname{bcftools}, the process
+is quite manual, and often involves working with HPC schedulers
+or workflow managers [this is very rough, just seeing where it goes].
+Splitting the workload \emph{by sample} however, is much more
+difficult. Parallelisation by variant and sample is an inherent
+part of \texttt{sgkit}'s design---the variant matrix is chunked
+in two dimensions, and Dask transparently maps computations to these
+chunks.
+Fig.~\ref{fig:data_scaling}B shows how \texttt{sgkit} scales
+on a single server, and how computation time decreases as we use
+more threads. In contrast, using threads with
+\toolname{bcftools} (via the XXX option) makes almost no difference
+because computational model is inherently sequential, and additional threads
+are only used to facilitate decompression.
+As we see in section XXX,
+a major advantage of \texttt{sgkit} is that it not only supports
+scaling \emph{up} within a server, but also scaling \emph{out}
+across multiple servers.
+
+The ability to
+run pre-defined analyses interactively on very large datasets by
+transparently distributing across a cluster is a major boost to
+researcher productivity. The ability to define one's \emph{own}
+analyses using familiar Python data-science tools and libraries,
+and to similarly distribute across a cluster (with single-threaded
+speed close to native compiled code) is a game-changer [say better].
+Fig.~\ref{fig:data_scaling}C shows the code used in the benchmark
+for \toolname{sgkit} in Fig.~\ref{fig:data_scaling}B. The heavy
+computation here is done in the \texttt{variant\_stats(ds)} function,
+which computes a set of variables summarising each of the variants
+by examining the entire variant matrix.
+These variables are mostly one-dimensional, and can thefore
+be processed `in-core' using numpy methods very effectively.
+For example, we \texttt{variant\_n\_het} the number of heterozygous samples
+in Fig.~\ref{fig:data_scaling}C. For $n=10^6$ we have X million
+variants, and the overall size of the data is Y MiB which
+comfortably fits in memory. Thus, the
+\texttt{get\_prob\_dist} function shown here reproduces the functionality
+of the \toolname{bcftools +afdist} plugin, which must be compiled and
+requires detailed knowledge of \toolname{htslib} APIs, using standard
+Python data science tools, and with similar performance.
+
+Reducing the variant matrix to summaries that are separately stored
+is the standard practise when using VCF/BCF files, for precisely the
+reason of avoiding the need to examine the entire genotype matrix.
+These are most often stored as ``INFO`` fields.
+Indeed, \toolname{bcftools +afdist} requires that the \texttt{AC}
+INFO field is present (but does not raise an error
+if it doesn't). Because of the row-based storage approach of
+VCF/BCF, adding any new fields to a file means reading in the entire
+file, and writing out a full copy. For our $n=10^6$ samples example,
+computing \texttt{AC} value required XX hours.
+In contrast, the columnar storage approach (see section XXX) used
+in \toolname{sgkit} means that we can \emph{update} an existing
+dataset with this derived information, without altering the existing
+on-disk information.
+Computing the
+\texttt{variant\_allele\_counts} variable using
+40 threads  required XX minutes, and updating the existing dataset required
+0.X seconds.
+
+The shortcomings of VCF as a storage format and computational
+substrate are well known, and as we discuss in Section XXX,
+storing genetic variation data is a complex issue
+and the subject of substantial ongoing research. The point of this
+section is not to establish that the approach taken by \toolname{sgkit}
+is state-of-the-art, but to contrast the approach we have taken
+with VCF (as the standard storage format) and to demonstrate
+the scalability and efficiency of \toolname{sgkit} as an analysis
+platform.
+
 
 
 \subsection{Statistical Genetics}
@@ -558,6 +680,153 @@ We use numba because [it's awesome].
 \subsubsection{Heterogenous computing}
 
 GPUs are cool, we support them.
+
+
+\subsection{Storing genetic variation data}
+The shortcomings of VCF (and to a lesser degree, BCF) as a storage
+format and the basis of efficient computation have long been
+recognised \citep[e.g.][]{kelleher2013processing,layer2016efficient,li2016bgt},
+and many alternatives
+have been proposed.
+
+The most concise representations of genotype data are directly
+informed by the underlying population genetic processes.
+Many recent tools are based on the Positional Burrows--Wheeler
+Transform (PBWT)~\citep{durbin2014efficient}, which takes advantage
+of the underlying haplotype structure of genomic data to provide
+concise storage, and efficient haplotype matching.
+
+
+\citep{layer2016efficient}
+\citep{li2016bgt}
+
+
+
+Encoding genetic data via the underlying genealogies also
+leads to extremely consise representations~\citep{kelleher2019inferring}
+and efficient processing algorithms.
+
+
+The approach taken by \toolname{plink}~\citep{purcell2007plink} is to
+store data in an uncompressed binary format. This has some major
+advantages.
+
+BGEN \citep{band2018bgen} is optimised for storing large-scale
+genotype array data and stores probabilities, and is used
+in particular by UK Biobank~\citep{bycroft2017genome}
+[Should consider the "hard-call" nature of most of these formats]
+
+Many methods working with large scale genetic
+data now use the PBWT or variants of
+it~\citep[e.g.][]{li2016bgt,lefaive2021sparse,wertenbroek2022xsi}. PBWTs have
+disadvantages, however: data must be phased, and compression level
+is quite sensitive to the presence of errors [citation? people have
+worked around this]
+
+
+Several tools provide querying interfaces in their CLIs
+(reminiscent of SQL) to provide easy access to particular samples, or
+variants~\cite{li2016bgt,layer2016efficient}.
+
+More recently XSI~\citep{wertenbroek2022xsi} is an file format that
+uses a combination of strategies to achieve excellent compression
+performance, and can support some calculations directly on the
+compressed format. It provides a command line interface and a
+C API.
+
+The SAV format is an extension of BCF that takes advantage
+of the sparseness of large scale genomic datasets~\citep{lefaive2021sparse}.
+They provide a command line interface and a C++ API.
+SpVCF~\citep{lin2020sparse} takes advantage of similar sparseness
+properties with an evolution of the text-based VCF format to
+achieve high-levels of compression.
+
+\citep{deorowicz2013genome,deorowicz2019gtshark}
+
+\citep{tatwawadi2016gtrac}
+
+It is important to note that the example in Fig.~\ref{fig:data_scaling}
+is something of a best-base
+scenario in terms genomic dataset storage, in that we are only
+storing genotype data (per sample, per variant),
+and, because it is error-free, is very
+highly compressible. Noisier genotypes will not compress quite
+so well, and storing less compressible data (such as genotype
+quality values) results in a large increase in the overall
+storage size. This is essentially unavoidable, but the Zarr-based
+approach still has some significant advantages over VCF/BCF
+[basically we can store separately and come up with distinct
+compression strategies based on the data type. Dunno if we
+want to get into this here. This is a complex topic with
+a lot of existing work which we should review and reference,
+and this is maybe not the place to do it.].
+
+[SpVCF has some good text on high-entropy QC measures. We have to
+reduce this entropy or we just can't store the data]
+
+
+[Why are we reviewing all this? Well, we want to make the point
+that people have been trying hard to address the problem of
+how to deal with large-scale genomic data for quite a while,
+and have come up with lots of specialised methods. There
+are a few things to keep in mind. Our approach is to use
+standard methods just on the "rectangles" of variant data
+and it's already quite good. You could imagine writing specialised
+compression filters for genotypes, if you wanted (maybe a
+discussion item though). The key thing is the \emph{interface}.
+They're all tying to the command line and to classical
+sequential workflows. We have Python, and distributed compute. ]
+
+% TEXT from HSG chapter section on compressing data
+
+% The simplest approach to compressing such data is to organise it in a
+% `variant-centric' fashion, such that all observed genotypes for a given variant
+% are stored in a contiguous block. Because most variants are rare, this will
+% result in long runs of identical values that compress well using standard
+% methods. This is the approach taken by the Variant Call
+% Format~\citep{danecek2011variant}, and its more efficient binary encoding, BCF.
+% The compression levels achieved by this straightforward approach are good, and
+% quite competitive with more sophisticated methods. The disadvantage
+% is that many queries require full decompression of the data, which can be
+% prohibitively time-consuming. The SpeedGene data format and software
+% library~\citep{qiao2012handling} chooses from one of three encoding methods for
+% each SNP determined by the allele frequency; \cite{sambo2014compression} extend
+% this idea by identifying blocks of SNPs in LD, and adding two additional
+% potential encodings utilising this information.
+
+% An alternative to this variant-centric approach is to store genotypes in a
+% `sample-centric' fashion. Here, all genotypes for a particular sample are
+% stored consecutively. While this breaks the simple repetition structure of data
+% stored in variant-centric form, other methods can be employed to find
+% compressible structure. For example, TGC~\citep{deorowicz2013genome} compresses
+% sample genotypes using a custom Lempel-Ziv style approach on runs of identity
+% among samples. This explicit use of LD structure results in excellent
+% compression performance (for example, 32MB for all SNPs in 1000 Genomes
+% chromosome 1); unfortunately, querying a dataset requires full decompression,
+% making the format unsuitable for online analysis. The GQT
+% toolkit~\citep{layer2016efficient} also uses the sample-centric organisation of
+% genotype data, but takes a different approach to compression. Variants are
+% sorted by allele frequency (resulting in longer runs of identical values within
+% samples) and then compressed using an efficient bit-vector
+% representation~\citep{wu2002compressing}. The resulting file-sizes are similar to
+% compressed BCF, but many queries can be performed directly on the compressed
+% representation and are therefore many times faster.
+
+% The positional Burrows-Wheeler transform~\citep{durbin2014efficient}, or PBWT,
+% is another sample-centric method. Building on the success of Burrows-Wheeler
+% transform applications in
+% genomics~\citep{langmead2009ultrafast,li2009fast,li2009soap2}, PBWT provides
+% very good compression performance and efficient algorithms for finding
+% haplotype matches. The algorithm builds a representation of the data based
+% on sorted haplotype prefixes in linear time, and the LD structure of the data
+% ensures that the sorting orders between adjacent sites change very little
+% on average. The method has been successfully applied
+% to phasing~\citep{loh2016reference}, detection of IBD
+% segments~\citep{naseri2017ultra}, improving the performance of the Li and
+% Stephens model~\citep{lunter2016fast}, and a general query engine for genotype
+% data~\citep{li2016bgt}. Recent extensions include privacy preserving
+% search~\citep{shimizu2016efficient} and generalisation to the setting of graph
+% genomes~\citep{novak2017graph}.
 
 \section{Discussion}
 
