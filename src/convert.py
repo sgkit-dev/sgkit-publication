@@ -31,12 +31,23 @@ def vcf_to_sgkit_zarr(
     """
     Convert the input from vcf/bcf to sgkit
     """
-    client = dask.distributed.Client(n_workers=8, threads_per_worker=1)
+    dask.config.set({'scheduler-profiler': None})
+    client = dask.distributed.Client(
+            n_workers=16, threads_per_worker=1,
+            )
+            # lifetime="100m", lifetime_stagger="5m",
+            # lifetime_restart=True)
     print(client)
     # Tried this, doesn't work:
     # with dask.diagnostics.ProgressBar():
-    # Need temp_chunk_length for 1M samples.
-    sgkit.io.vcf.vcf_to_zarr(infile, outfile, temp_chunk_length=100)
+    sgkit.io.vcf.vcf_to_zarr(infile,
+            outfile,
+            target_part_size="100MB",
+            chunk_width=10_000,
+            chunk_length=2000,
+            temp_chunk_length=1000,
+            read_chunk_length=500,
+            tempdir="tmp/")
     print("done")
 
 
