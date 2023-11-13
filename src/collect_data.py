@@ -72,6 +72,7 @@ def get_prob_dist(ds, num_bins=10):
     count = (a + b).astype(int)
     return pd.DataFrame({"start": bins[:-1], "stop": bins[1:], "prob_dist": count[1:]})
 
+
 def _sgkit_afdist_work(ds_path):
     ds = sg.load_dataset(ds_path)
     ds = sg.variant_stats(ds, merge=False).compute()
@@ -79,6 +80,7 @@ def _sgkit_afdist_work(ds_path):
     df = get_prob_dist(ds)
     # print(df)
     return df
+
 
 def sgkit_afdist_worker(ds_path, num_threads, debug, conn):
     before = time.time()
@@ -188,7 +190,6 @@ def file_size(source_pattern, output, suffix, debug):
         # print(df)
 
     print(df)
-
 
 
 @click.group()
