@@ -18,6 +18,8 @@
 \newcommand{\sgapi}[1]{\texttt{#1}}
 \newcommand{\toolname}[1]{\texttt{#1}}
 
+\newcommand{\sgkit}{\texttt{sgkit}}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% ARTICLE SETUP
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -652,7 +654,7 @@ in genomics have been limited to [things like the ABySS assembler].
 
 [Paragraph describing, Big data, Hadoop, MapReduce, Spark, etc. Why
 they don't use MPI, that the problem being solved was/is.
-Applications to genomics like ADAM were promising, but never really
+Applications to genomics like ADAM~\citep{nothaft2015rethinking} were promising, but never really
 took off. Hail (see also genomics section) notably does a
 bunch of things well, but only by rewriting whole chunks of the
 underlying technologies]
@@ -827,6 +829,92 @@ sequential workflows. We have Python, and distributed compute. ]
 % data~\citep{li2016bgt}. Recent extensions include privacy preserving
 % search~\citep{shimizu2016efficient} and generalisation to the setting of graph
 % genomes~\citep{novak2017graph}.
+
+\subsection{Reimplementing complex methods}
+
+
+To showcase the advantages of \sgkit's pure-Python development model, we
+discuss some things we've implemented.
+
+
+\subsection{Functionality}
+
+[Just listing out all the things that have been implemented to try and get
+some kind of grip on what we're doing]
+
+
+\begin{itemize}
+
+\item \sgapi{pc\_relate} estimate genetic relatedness, returns sample x sample
+kinship coefficient matrix. \citep{conomos2016model} (genetic Relatedness matrix)
+
+\item \sgapi{Weir\_Goudet\_beta} sample x sample Kinship matrix
+\citep{weir2017unified} (genetic Relatedness matrix)
+
+\item \sgapi{genomic\_relationship} Genetic relationship matrix estimated
+by either the Van Raden algorithm generalised to
+autopolyploids~\citep{vanraden2008efficient,ashraf2016estimating,bilton2020developing}
+and the Endelman-Jannink estimator \citep{endelman2011ridge}
+(genetic Relatedness matrix)
+
+\item \sgapi{hybrid\_relationship} Hybrid relationship matrix
+(AKA the HRM or H-matrix) combining pedigree and genomic information
+~\citep{martini2018effect}
+Also \sgapi{hybrid\_inverse\_relationship} (Relatedness matrices)
+
+\item \sgapi{pedigree\_inverse\_kinship} Calculate the inverse of the kinship
+matrix from pedigree structure.
+
+\item \sgapi{pedigree\_kinship} Calculate the kinship
+matrix from pedigree structure.
+
+\item \sgapi{invert\_relationship\_matrix} Compute the inverse of a
+relationship matrix (?)
+
+\item \sgapi{pedigree\_contribution} expected genomic contribution of each
+sample to each other based on pedigree (Hamilton-Kerr?)
+
+\item \sgapi{pedigree\_inbreeding} Estimate expected per-sample
+inbreeding coefficients from pedigree structure.
+\citep{hamilton2018computation}
+
+\item \sgapi{identity\_by\_state} Pairwise sample x sample matrix
+of IBS probabilities
+
+\item \sgapi{ld\_matrix} Sparse matrix of LD values exceeding a threshold.
+\item \sgapi{ld\_prune} Find a maximally independent set of variants
+(based on plink algorithm)
+
+\item \sgapi{regenie} produces trait estimates for association tests.
+\citep{mbatchou2021computationally} (GWAS)
+\item \sgapi{genee} Gene-level effects
+\citep{cheng2020estimation} (GWAS)
+\item \sgapi{gwas\_linear\_regression} Least square regression based
+on BoltLMM~\citep{loh2015efficient} (GWAS)
+\item \sgapi{hardy\_weinberg\_test} Exact Hardy-Weinberg
+test~\citep{wigginton2005note} (GWAS)
+
+\item \sgapi{TajimasD} popgen stat
+\item \sgapi{divergence} popgen stat
+\item \sgapi{diversity} popgen stat
+\item \sgapi{pbs} popgen stat
+\item \sgapi{Fst} popgen stat
+\item \sgapi{Garud\_H} soft sweep stats~\citep{garud2015recent}
+
+
+\item \sgapi{sample\_stats} basic QC variant data
+
+\item \sgapi{variant\_stats} basic QC variant data
+
+\item \sgapi{pedigree\_sel} slice by pedigree
+
+\item \sgapi{window\_by\_genome} Windowing
+
+\end{itemize}
+
+
+
+
 
 \section{Discussion}
 
