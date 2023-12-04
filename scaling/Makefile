@@ -1,5 +1,6 @@
 BCFTOOLS=../software/bcftools
-BCFTOOLS_PLUGINS=../software/bcftools-1.18/plugins 
+BCFTOOLS_PLUGINS=../software/bcftools-1.18/plugins
+SAVVY=../software/savvy/bin/sav
 
 simulated_chrom_21.ts.tsz:
 	wget https://zenodo.org/record/7702392/files/simulated_chrom_21.ts.tsz
@@ -24,6 +25,9 @@ simulated_chrom_1.ts.tsz:
 
 %.sgz: %.bcf
 	python3 ../src/convert.py vcf-to-sgkit-zarr $< $@
+
+%.sav: %.bcf
+	${SAVVY} import --phasing full $< > $@
 
 # NOTES here for now
 # it's quite hard to find something that bcftools does that just

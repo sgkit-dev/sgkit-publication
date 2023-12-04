@@ -34,8 +34,7 @@ class ProcessTimeResult:
     system: float
     user: float
 
-
-def run_bcftools_afdist(path, num_threads, debug=False):
+def time_cli_command(cmd, debug):
     # FIXME this doesn't look like it's capturing time
     # time spent by threads correctly
 
@@ -43,19 +42,30 @@ def run_bcftools_afdist(path, num_threads, debug=False):
     #    the process (in kernel mode), in seconds.
     # U: Total number of CPU-seconds that the process used directly
     #    (in user mode), in seconds.
-    cmd = (
-        "BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins "
-        "/usr/bin/time -f'%S %U' "
-        f"software/bcftools +af-dist --threads {num_threads} "
-    )
     before = time.time()
-    out = subprocess.run(cmd + str(path), shell=True, check=True, capture_output=True)
+    out = subprocess.run(cmd, shell=True, check=True, capture_output=True)
     wall_time = time.time() - before
     time_str = out.stderr.decode()
     sys_time, user_time = map(float, time_str.split())
     if debug:
         print(out.stdout.decode())
     return ProcessTimeResult(wall_time, sys_time, user_time)
+
+def run_bcftools_afdist(path, num_threads, debug=False):
+
+    cmd = (
+        "BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins "
+        "/usr/bin/time -f'%S %U' "
+        f"software/bcftools +af-dist --threads {num_threads} {path}"
+    )
+    return time_cli_command(cmd, debug)
+    
+def run_savvy_afdist(path, num_threads, num_variants, debug=False):
+    cmd = (
+        "/usr/bin/time -f'%S %U' "
+        f"software/savvy-afdist/sav-afdist --threads {num_threads} --sav-file {path} --num-variants {num_variants}"
+    )
+    return time_cli_command(cmd, debug)
 
 
 def get_prob_dist(ds, num_bins=10):
@@ -125,19 +135,22 @@ def processing_time(source_pattern, output, suffix, debug):
         bcf_path = ts_path.with_suffix(".bcf")
         bcf_af_path = ts_path.with_suffix(".tags.bcf")
         sg_path = ts_path.with_suffix(".sgz")
+        sav_path = ts_path.with_suffix(".sav")
         if not sg_path.exists:
             print("Skipping missing", sg_path)
             continue
         ds = sg.load_dataset(sg_path)
+        num_sites = ts.num_sites
         assert ts.num_samples // 2 == ds.samples.shape[0]
-        assert ts.num_sites == ds.variant_position.shape[0]
+        assert num_sites == ds.variant_position.shape[0]
         assert np.array_equal(ds.variant_position, ts.tables.sites.position.astype(int))
         for num_threads in [1, 2, 8]:
             bcf_time = run_bcftools_afdist(bcf_af_path, num_threads, debug)
             print("BCF:", bcf_time)
             sgkit_time = run_sgkit_afdist(sg_path, num_threads, debug)
             print("SG:", sgkit_time)
-            for result, prog in [(bcf_time, "bcftools"), (sgkit_time, "sgkit")]:
+            sav_time = run_savvy_afdist(sav_path, num_threads, num_sites, debug)
+            for result, prog in [(bcf_time, "bcftools"), (sgkit_time, "sgkit"), (sav_time, "savvy")]:
                 data.append(
                     {
                         "num_samples": ds.samples.shape[0],
@@ -168,6 +181,7 @@ def file_size(source_pattern, output, suffix, debug):
         bcf_path = ts_path.with_suffix(".bcf")
         bcf_af_path = ts_path.with_suffix(".tags.bcf")
         sg_path = ts_path.with_suffix(".sgz")
+        sav_path = ts_path.with_suffix(".sav")
         if not sg_path.exists:
             print("Skipping missing", sg_path)
             continue
@@ -183,6 +197,7 @@ def file_size(source_pattern, output, suffix, debug):
                 "tsk_size": du(ts_path),
                 "bcf_size": du(bcf_path),
                 "sgkit_size": du(sg_path),
+                "sav_size": du(sav_path),
             }
         )
         df = pd.DataFrame(data).sort_values("num_samples")
