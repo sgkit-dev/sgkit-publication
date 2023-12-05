@@ -96,6 +96,30 @@ to an elite set of well-funded groups.
 
 \section{Results}
 
+\subsection{Chunked storage and distributed computation}
+How we store genetic data fundamentally affects how computation
+can be structured, and ultimately the scalability of the calculations
+we wish to perform. Classically, genetic variation data is stored via one
+of two strategies. The first strategy, epitomised by
+VCF~\citep{danecek2011variant} encodes all the data for a given
+variant in a record, and then stores these records consecutively on file
+(optionally compressed). This record-oriented approach maps well to the
+classical and hugely powerful abstractions of Unix pipelines, and
+has proven to be very successful. The second classical strategy, epitomised
+by the \texttt{plink} BED format~\citep{purcell2007plink}, is to
+store genotype data in a structured binary format that can be
+accessed directly. This memory-map approach tends to
+be much faster to access, but leads to larger files and is more
+limited in what can be represented. There are advantages and
+disadvantages to both approaches, but one problem fundamentally
+limits their utility for modern data: neither is well suited to
+scaling-out across multiple machines.
+
+% Need to discuss scale-up and scale-out?
+Modern genetic datasets require parallelism.
+
+
+
 \subsection{Sgkit design principles}
 Openness is a core organising principle of sgkit, both in terms of
 development processes and code licensing, and also with respect
