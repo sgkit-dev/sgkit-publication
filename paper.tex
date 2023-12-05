@@ -96,53 +96,40 @@ to an elite set of well-funded groups.
 
 \section{Results}
 
-\subsection{Sgkit design principles}
-Openness is a core organising principle of sgkit, both in terms of
-development processes and code licensing, and also with respect
-to usability. By following the general philosophy of array-oriented
-computing, the functionality in sgkit is organised around the
-key concept of a ``dataset`` which encapsulates a set of
-related ``variables''. The implementation aims to be as agnostic
-as possible as to the underlying implementation of these arrays,
-which can be stored in-memory as NumPy arrays, in chunked
-compressed on-disk storage as Zarr arrays, or ...
+\subsection{Chunked storage and distributed computation}
+How we store genetic data fundamentally affects how computation
+can be structured, and ultimately the scalability of the calculations
+we wish to perform. Classically, genetic variation data is stored via one
+of two strategies. The first strategy, epitomised by
+VCF~\citep{danecek2011variant} encodes all the data for a given
+variant in a record, and then stores these records consecutively on file
+(optionally compressed). This record-oriented approach maps well to the
+powerful Unix pipelines abstraction and
+has proven to be very successful.
+The second classical strategy, epitomised
+by the \texttt{plink} BED format~\citep{purcell2007plink}, is to
+store genotype data in a structured binary format that can be
+accessed directly. This memory-map approach tends to
+be much faster to access, but leads to larger files and is more
+limited in what can be represented. There are advantages and
+disadvantages to both approaches, but one problem fundamentally
+limits their utility for modern data: neither is well suited to
+scaling-out across multiple machines.
 
-% Perhaps this should be mentioned in the QuantGen section?
-The data layout used here is compatible with the ChromaX
-breeding program simulator~\citep{younis2023chromax}, which
-is leveraging other aspects of the PyData ecosystem to
-fully utilise modern parallel hardware.
-
-
-[In later sections we discuss enabling technologies in detail,
-here we talk about how we use them from a high-level, and layout
-the overall design philosophy. This isn't documentation, rather
-it's the forum where we lay out explicitly early design choices
-and their rationale.]
-
-VCF conversion is handled using
-\toolname{cyvcf2}~\citep{pedersen2017cyvcf2}.
-[TODO any citations for these?]
-BGEN using \toolname{cbgen}.
-Plink support using \toolname{bed\_reader}
-
-[Text from proposal]
-
-The rapid evolution of supporting projects in the PyData ecosystem, including Dask for
-distributed processing, Xarray for coordinated operations on groups of labeled
-n-dimensional arrays, Zarr for n-dimensional array storage on cloud object
-stores, and Numba for hardware acceleration. We’ve designed sgkit from the
-ground up to tightly integrate with these libraries so that we can benefit from
-the many improvements being made upstream, making the PyData ecosystem
-accessible to statistical geneticists.
-
-We've also defined a Zarr representation for efficient storage of this data.
-We’ve designed an Xarray dataset-based data model which can be populated from
-any of the file formats above, and against which library methods are
-implemented. These methods include variant and sample quality control,
-population structure analysis, genome-wide selection scans, and genome-wide
-association analyses, including a novel implementation of the recently
-developed and state-of-the-art REGENIE algorithm.
+The ability to perform calculations in parallel on multiple CPU cores
+is a basic prerequisite at the scale of modern datasets, and
+running on multiple computers in a cluster is increasingly becoming
+necessary. Record-oriented variant storage such as VCF is not suitable
+for  distributed computing because although it is relatively
+straightforward to break workloads up by variant, we cannot efficiently
+split by sample (see the section on Columnar Data below for details).
+Storing data in a memory-mapped manner, where the genotype matrix
+for each variant are written consecutive consecutively to a file,
+suffers from the same problem. Because the genotypes for a given subset
+of samples are widely separated in the file, each node in a distributed
+cluster must effectively read the entire file in order to obtain the
+data for a subset of samples. In practise, this means that calculations
+are limited by I/0 bandwidth.
 
 \begin{figure}
 % The source for this figure is a google drawing
@@ -152,8 +139,23 @@ developed and state-of-the-art REGENIE algorithm.
 % discussion
 \includegraphics[width=\linewidth]{diagrams/sgkit_xarray_diagram.pdf}
 \caption{The \toolname{sgkit} Xarray data model.}
-\label{fig:data_model}
+\label{fig-data-layout}
 \end{figure}
+
+A simple and elegant solution to providing efficient access to such
+large matrices across multiple dimensions is to store rectangular
+\emph{chunks} rather than entire rows or columns. This is illustrated
+in Fig~\ref{fig-data-layout}, where we show the basic approach
+utilised by sgkit. By storing data in these regular chunks, we
+can efficiently access data for both specific variants \emph{and}
+samples. Additionally, we can compress the individual chunks [more details].
+
+This maps well to distributed computing because Zarr provides a
+very flexible approach to storing the chunks. By using a native cloud store
+for these chunks, compute nodes can directly access the chunks that
+are needed, and not read irrelevant data.
+[TODO flesh out and more stuff.]
+
 
 \subsection{Scaling up interactive analysis}
 The storage and analysis of datasets consisting of hundreds of
@@ -315,6 +317,56 @@ is state-of-the-art, but to contrast the approach we have taken
 with VCF (as the standard storage format) and to demonstrate
 the scalability and efficiency of \toolname{sgkit} as an analysis
 platform.
+
+
+\subsection{Sgkit design principles}
+
+Openness is a core organising principle of sgkit, both in terms of
+development processes and code licensing, and also with respect
+to usability. By following the general philosophy of array-oriented
+computing, the functionality in sgkit is organised around the
+key concept of a ``dataset`` which encapsulates a set of
+related ``variables''. The implementation aims to be as agnostic
+as possible as to the underlying implementation of these arrays,
+which can be stored in-memory as NumPy arrays, in chunked
+compressed on-disk storage as Zarr arrays, or ...
+
+% Perhaps this should be mentioned in the QuantGen section?
+The data layout used here is compatible with the ChromaX
+breeding program simulator~\citep{younis2023chromax}, which
+is leveraging other aspects of the PyData ecosystem to
+fully utilise modern parallel hardware.
+
+
+[In later sections we discuss enabling technologies in detail,
+here we talk about how we use them from a high-level, and layout
+the overall design philosophy. This isn't documentation, rather
+it's the forum where we lay out explicitly early design choices
+and their rationale.]
+
+VCF conversion is handled using
+\toolname{cyvcf2}~\citep{pedersen2017cyvcf2}.
+[TODO any citations for these?]
+BGEN using \toolname{cbgen}.
+Plink support using \toolname{bed\_reader}
+
+[Text from proposal]
+
+The rapid evolution of supporting projects in the PyData ecosystem, including Dask for
+distributed processing, Xarray for coordinated operations on groups of labeled
+n-dimensional arrays, Zarr for n-dimensional array storage on cloud object
+stores, and Numba for hardware acceleration. We’ve designed sgkit from the
+ground up to tightly integrate with these libraries so that we can benefit from
+the many improvements being made upstream, making the PyData ecosystem
+accessible to statistical geneticists.
+
+We've also defined a Zarr representation for efficient storage of this data.
+We’ve designed an Xarray dataset-based data model which can be populated from
+any of the file formats above, and against which library methods are
+implemented. These methods include variant and sample quality control,
+population structure analysis, genome-wide selection scans, and genome-wide
+association analyses, including a novel implementation of the recently
+developed and state-of-the-art REGENIE algorithm.
 
 
 
