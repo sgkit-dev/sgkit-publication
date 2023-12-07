@@ -842,25 +842,42 @@ recognised \citep[e.g.][]{kelleher2013processing,layer2016efficient,li2016bgt},
 and many alternatives
 have been proposed.
 
-The most concise representations of genotype data are directly
-informed by the underlying population genetic processes.
+Purely archival formats try to get the maximum possible compression levels,
+without much attention to query performance. Typically these use
+highly specialised approaches to maximise compression performance
+on genotype data.
+
+These include:
+TGC~\citep{deorowicz2013genome}
+GTShark~\citep{deorowicz2019gtshark},
+VCFShark~\citep{deorowicz2021vcfshark}.
+
+SpVCF~\citep{lin2020sparse} is an extension of the VCF text
+format that maximises compatibility, while gaining substantial
+improvements in file sizes.
+
+Many tools focus on balancing compression performance with
+being able to run queries, typically outputting a VCF.
+e.g.
+BGT~\citep{li2016bgt},
+GQT~\citep{layer2016efficient},
+SAVVY~\citep{lefaive2021sparse},
+XSI~\citep{wertenbroek2022xsi},
+GTC~\citep{danek2018gtc},
+GTRAC~\citep{tatwawadi2016gtrac}
+genozip~\citep{lan2020genozip,lan2021genozip}
+GBC~\citep{zhang2023gbc}.
+
+SeqArray~\citep{zheng2017seqarray} and the GDS format~\citep{zheng2012high}
+provide efficient storage and programmatic access in R.
+
+
 Many recent tools are based on the Positional Burrows--Wheeler
 Transform (PBWT)~\citep{durbin2014efficient}, which takes advantage
 of the underlying haplotype structure of genomic data to provide
 concise storage, and efficient haplotype matching.
 
-
-\citep{layer2016efficient}
-\citep{li2016bgt}
-
-
-
-Encoding genetic data via the underlying genealogies also
-leads to extremely consise representations~\citep{kelleher2019inferring}
-and efficient processing algorithms.
-
-
-The approach taken by \toolname{plink}~\citep{purcell2007plink} is to
+The approach taken by \toolname{plink}~\citep{purcell2007plink,chang2015second} is to
 store data in an uncompressed binary format. This has some major
 advantages.
 
@@ -876,7 +893,6 @@ disadvantages, however: data must be phased, and compression level
 is quite sensitive to the presence of errors [citation? people have
 worked around this]
 
-
 Several tools provide querying interfaces in their CLIs
 (reminiscent of SQL) to provide easy access to particular samples, or
 variants~\cite{li2016bgt,layer2016efficient}.
@@ -890,13 +906,6 @@ C API.
 The SAV format is an extension of BCF that takes advantage
 of the sparseness of large scale genomic datasets~\citep{lefaive2021sparse}.
 They provide a command line interface and a C++ API.
-SpVCF~\citep{lin2020sparse} takes advantage of similar sparseness
-properties with an evolution of the text-based VCF format to
-achieve high-levels of compression.
-
-\citep{deorowicz2013genome,deorowicz2019gtshark}
-
-\citep{tatwawadi2016gtrac}
 
 It is important to note that the example in Fig.~\ref{fig:data_scaling}
 is something of a best-base
