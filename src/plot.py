@@ -6,12 +6,15 @@ import click
 
 sgkit_colour = "tab:blue"
 bcf_colour = "tab:orange"
-
+sav_colour = "tab:red"
 
 def plot_size(ax, df):
     ax.loglog(df["num_samples"], df["bcf_size"], ".-", color=bcf_colour, label="bcf")
     ax.loglog(
         df["num_samples"], df["sgkit_size"], ".-", color=sgkit_colour, label="sgkit"
+    )
+    ax.loglog(
+        df["num_samples"], df["sav_size"], ".-", color=sav_colour, label="savvy"
     )
     ax.legend()
     # for n, size in zip(df["num_samples"], df["bcf_size"]):
@@ -32,7 +35,7 @@ def plot_size(ax, df):
 
 
 def plot_time(ax, df):
-    colours = {"bcftools": bcf_colour, "sgkit": sgkit_colour}
+    colours = {"bcftools": bcf_colour, "sgkit": sgkit_colour, "savvy": sav_colour}
     threads_lines = []
     threads_labels = []
     for threads, ls in zip([1, 2, 8], ["solid", "dashed", "dotted"]):
