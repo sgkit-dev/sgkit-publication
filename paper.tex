@@ -94,6 +94,80 @@ to an elite set of well-funded groups.
 
 [Summary of what we do and paper roadmap]
 
+In this paper we present sgkit, a Python library for large-scale genetic data
+analysis that supports efficient and convenient distributed computation based
+on open data formats and established technologies. We begin by examining the
+fundamental question of how we can store observed genotypes for millions of
+samples and hundreds of millions of variant sites in a way that is compact,
+supports efficient retrieval for subsets of both samples and sites, and leads
+to efficient distributed computation. We demonstrate that the straightforward
+approach of storing genotypes in compressed rectangular chunks using the Zarr
+library enables efficient access by sample, and yields compression levels and
+computation speeds similar to specialised methods for genetic data. These
+chunks also provide
+a natural unit % FIXME "unit" is the wrong word
+to parallelise work over, and by using the Dask library sgkit can easily and
+transparently execute tasks concurrently within a single computer or across a
+large cluster. Concurrent and distributed programming is notoriously difficult,
+but Dask's high-level array-oriented operations, coupled with just-in-time
+(JIT) compilation via numba~\citep{lam2015numba}, makes it straightforward to
+write performant distributed code in Python.
+Storing and processing genotype data is of course only one part of
+genetic data analysis, and real-world analyses require large volumes
+of additional data associated with variants, samples and genotypes calls.
+To help manage this complexity
+the basic unit of sgkit's interface is an Xarray
+dataset~\citep{hoyer2017xarray}, which provides a flexible container
+for labelled multi-dimensional arrays. Thus, arbitrary numerical data
+can be associated with any of the relevant dimensions, and stored
+efficiently in chunked Zarr format.
+
+Using these fundamental building blocks sgkit currently provides
+functionality across four key themes of general quality-control,
+statistical, population and quantitative genetics. In
+each case we briefly discuss available software, and showcase
+the functionality via case-studies.
+% Note: wishlist, just writing down some stuff that sounds good!
+% Also four-key themes doesn't quite fit with 5 sections mentioned
+% below - it's a WIP.
+We first demonstrate interactive quality-control of [large dataset]
+on [cluster], demonstrating how users can quickly summarise
+large-scale data in a Jupyter notebook. We then illustrate the
+statistical genetics functionality by performing a GWAS
+on [something]. We showcase support for
+population genetic data by [doing something from one of Alistairs
+notebooks?].
+We then demonstrate support for quantitative genetics
+applications by applying relatedness matrix functions to [something].
+% Note: it would be quite neat if we could say this is support
+% for phylogenetics operations. Coupled with upstream SeqData
+% we might actually be able to do this for some public SARS-CoV-2
+% data or something, and make a neighbour joining tree using
+% scipy (which is a terrible method, so would have to fully
+% acknowledge).
+Finally, demonstrate sgkit's support for heterogenous computing
+and the general potential for using GPUs by computing a
+pairwise distance matrix for [something], and demonstrate
+X-fold speedup using our GPU implementation.
+
+% Maybe this belongs in the discussion - we can leave it here for now.
+Sgkit builds on the four key technologies of Zarr, Dask, Numba and Xarray,
+widely used throughout the sciences, to bring efficient large-scale
+genetics computation within the reach of many.
+Sgkit is by design an open ecosystem.
+The data model is well-documented,
+based on open standards, and extensible to include arbitrary additional
+variables and dimensions. Users are not restricted to a limited palate
+of analyses, but have the full power of the Python data-science stack
+available, and can write their own operations in terms of distributed
+array operations or optimised numerical code. Finally, sgkit's
+development model is open, with a codebase that is specifically
+designed for ease of contribution,
+% This is horrible, put in something better later.
+and development processes informed
+by combined decades of experience in open-source projects.
+
+
 \section{Results}
 
 \subsection{Chunked storage and distributed computation}
@@ -113,20 +187,40 @@ accessed directly. This memory-map approach tends to
 be much faster to access, but leads to larger files and is more
 limited in what can be represented. There are advantages and
 disadvantages to both approaches, but one problem fundamentally
-limits their utility for modern data: neither is well suited to
+limits their utility for modern datasets: neither is well suited to
 scaling-out across multiple machines.
 
-The ability to perform calculations in parallel on multiple CPU cores
-is a basic prerequisite at the scale of modern datasets, and
-running on multiple computers in a cluster is increasingly becoming
-necessary. Record-oriented variant storage such as VCF is not suitable
+[Probably need a paragraph here on what we've done classically
+by splitting by variant. This was the dominant dimension, so that
+worked fine. Now we need to also think about access-by-sample]
+
+Given the scale of modern datasets, the ability to perform
+calculations in parallel on multiple CPU cores
+is now a basic prerequisite, and
+running concurrently on multiple computers in a cluster
+is increasingly becoming necessary. [For interactive analysis? People have
+been doing concurrent computing with HPC clusters forever.]
+Record-oriented variant storage such as VCF is not suitable
 for  distributed computing because although it is relatively
 straightforward to break workloads up by variant, we cannot efficiently
 split by sample (see the section on Columnar Data below for details).
-Storing data in a memory-mapped manner, where the genotype matrix
+Storing data in a memory-mapped manner, where the genotypes
 for each variant are written consecutive consecutively to a file,
-suffers from the same problem. Because the genotypes for a given subset
-of samples are widely separated in the file, each node in a distributed
+suffers from the same problem. Although it is useful to conceptualise
+the genotype matrix as two-dimensional, it is important to remember
+that computer memory and file storage is ultimately one-dimensonal.
+For example, plink's memory-mapped data layout linearises the 2D
+genotype matrix by writing [TODO check] $n$ bytes representing
+the genotypes for all samples at a variant position consecutively.
+Because the genotypes for a given variant index can be found
+in contiguous blocks at easily computable offsets from
+this initial location in memory,
+accessing the genotypes for a given variant is very efficient.
+However, accessing the genotypes for a given sample at every
+variant position is much less efficient because each of the $m$ bytes we
+must read are $n$ bytes apart in the file.
+In the distributed context, this often means
+that each compute node  in a
 cluster must effectively read the entire file in order to obtain the
 data for a subset of samples. In practise, this means that calculations
 are limited by I/0 bandwidth.
@@ -146,9 +240,14 @@ A simple and elegant solution to providing efficient access to such
 large matrices across multiple dimensions is to store rectangular
 \emph{chunks} rather than entire rows or columns. This is illustrated
 in Fig~\ref{fig-data-layout}, where we show the basic approach
-utilised by sgkit. By storing data in these regular chunks, we
+used by sgkit. By storing data in these regular chunks, we
 can efficiently access data for both specific variants \emph{and}
-samples. Additionally, we can compress the individual chunks [more details].
+samples.
+
+Additionally, we can compress the individual chunks [more details].
+
+This general strategy for storing multidimensional numerical data
+has been in use for many years~\citep{folk2011overview}
 
 This maps well to distributed computing because Zarr provides a
 very flexible approach to storing the chunks. By using a native cloud store
@@ -477,7 +576,7 @@ simulation~\citep{kelleher2018efficient,haller2018tree}
 as well as being inferred from observed variation
 data~\citep{kelleher2019inferring,wohns2022unified},
 supported by the open-source \toolname{tskit}
-library~\citep{tskit2023tskit}.
+library~\citep{ralph2020efficiently}.
 See~\cite{baumdicker2021efficient} for further discussion on
 computation in population genetic simulations, and the
 \texttt{tskit} software ecosystem.
@@ -767,7 +866,7 @@ advantages.
 
 BGEN \citep{band2018bgen} is optimised for storing large-scale
 genotype array data and stores probabilities, and is used
-in particular by UK Biobank~\citep{bycroft2017genome}
+in particular by UK Biobank~\citep{bycroft2018genome}
 [Should consider the "hard-call" nature of most of these formats]
 
 Many methods working with large scale genetic
