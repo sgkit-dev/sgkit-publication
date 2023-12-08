@@ -34,6 +34,7 @@ class ProcessTimeResult:
     system: float
     user: float
 
+
 def time_cli_command(cmd, debug):
     # FIXME this doesn't look like it's capturing time
     # time spent by threads correctly
@@ -51,14 +52,15 @@ def time_cli_command(cmd, debug):
         print(out.stdout.decode())
     return ProcessTimeResult(wall_time, sys_time, user_time)
 
-def run_bcftools_afdist(path, num_threads, debug=False):
 
+def run_bcftools_afdist(path, num_threads, debug=False):
     cmd = (
         "BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins "
         "/usr/bin/time -f'%S %U' "
         f"software/bcftools +af-dist --threads {num_threads} {path}"
     )
     return time_cli_command(cmd, debug)
+
 
 def run_savvy_afdist(path, num_threads, num_variants, debug=False):
     cmd = (
@@ -150,7 +152,11 @@ def processing_time(source_pattern, output, suffix, debug):
             sgkit_time = run_sgkit_afdist(sg_path, num_threads, debug)
             print("SG:", sgkit_time)
             sav_time = run_savvy_afdist(sav_path, num_threads, num_sites, debug)
-            for result, prog in [(bcf_time, "bcftools"), (sgkit_time, "sgkit"), (sav_time, "savvy")]:
+            for result, prog in [
+                (bcf_time, "bcftools"),
+                (sgkit_time, "sgkit"),
+                (sav_time, "savvy"),
+            ]:
                 data.append(
                     {
                         "num_samples": ds.samples.shape[0],
@@ -190,21 +196,26 @@ def file_size(source_pattern, output, suffix, debug):
         assert ts.num_samples // 2 == ds.samples.shape[0]
         assert ts.num_sites == ds.variant_position.shape[0]
         assert np.array_equal(ds.variant_position, ts.tables.sites.position.astype(int))
-        data.append(
-            {
-                "sequence_length": int(ts.sequence_length),
-                "num_samples": ds.samples.shape[0],
-                "num_sites": ts.num_sites,
-                "tsk_size": du(ts_path),
-                "bcf_size": du(bcf_path),
-                "sgkit_size": du(sg_path),
-                "sav_size": du(sav_path),
-                "genozip_size": du(genozip_path),
-            }
-        )
-        df = pd.DataFrame(data).sort_values("num_samples")
-        df.to_csv(output)
-        # print(df)
+        tmap = {
+            "tsk": ts_path,
+            "bcf": bcf_path,
+            "sgkit": sg_path,
+            "sav": sav_path,
+            "genozip": genozip_path,
+        }
+        for tool, path in tmap.items():
+            size = du(path)
+            data.append(
+                {
+                    "sequence_length": int(ts.sequence_length),
+                    "num_samples": ds.samples.shape[0],
+                    "num_sites": ts.num_sites,
+                    "tool": tool,
+                    "size": size,
+                }
+            )
+            df = pd.DataFrame(data).sort_values(["num_samples", "tool"])
+            df.to_csv(output)
 
     print(df)
 
