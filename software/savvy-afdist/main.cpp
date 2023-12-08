@@ -39,9 +39,12 @@ void process_slice(const std::string& filename, uint64_t start, uint64_t end, st
 }
 
 // Use a lambda expression for finding the bin index
-auto findBinIndex = [](const std::vector<double>& bins, double value) {
+auto findBinIndex = [](const std::vector<double>& bins, double value) -> int {
+    if (value < bins.front()) return 0;
+    if (value >= bins.back()) return static_cast<int>(bins.size()) - 2;
+
     auto it = std::lower_bound(bins.begin(), bins.end(), value);
-    return (it == bins.end() || *it != value) ? it - bins.begin() - 1 : it - bins.begin();
+    return static_cast<int>((it == bins.end() || *it != value) ? it - bins.begin() - 1 : it - bins.begin());
 };
 
 // Function to check if a file exists
@@ -102,7 +105,7 @@ int main(int argc, char* argv[]) {
         int end = (i + 1) * records_per_thread;
         threads.emplace_back(process_slice, filename, start, end, std::ref(all_af[i]), std::ref(all_hets[i]), std::ref(all_homs[i]));
     }
-    
+
     for (auto& t : threads) {
         t.join();
     }
