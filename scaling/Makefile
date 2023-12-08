@@ -1,6 +1,7 @@
 BCFTOOLS=../software/bcftools
 BCFTOOLS_PLUGINS=../software/bcftools-1.18/plugins
 SAVVY=../software/savvy/bin/sav
+GENOZIP=../software/genozip
 
 simulated_chrom_21.ts.tsz:
 	wget https://zenodo.org/record/7702392/files/simulated_chrom_21.ts.tsz
@@ -28,6 +29,9 @@ simulated_chrom_1.ts.tsz:
 
 %.sav: %.bcf
 	${SAVVY} import --phasing full $< > $@
+
+%.genozip: %.bcf
+	${GENOZIP} --no-test $< -o $@
 
 # NOTES here for now
 # it's quite hard to find something that bcftools does that just

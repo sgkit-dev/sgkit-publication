@@ -10,5 +10,6 @@ for n in 10 100 1000 10000 100000 1000000; do
 	make $stem.bcf
 	# make $stem.sgz
 	# make $stem.sav
+	# make $stem.genozip
 done
 
