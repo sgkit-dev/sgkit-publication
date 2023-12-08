@@ -59,7 +59,7 @@ def run_bcftools_afdist(path, num_threads, debug=False):
         f"software/bcftools +af-dist --threads {num_threads} {path}"
     )
     return time_cli_command(cmd, debug)
-    
+
 def run_savvy_afdist(path, num_threads, num_variants, debug=False):
     cmd = (
         "/usr/bin/time -f'%S %U' "
@@ -182,6 +182,7 @@ def file_size(source_pattern, output, suffix, debug):
         bcf_af_path = ts_path.with_suffix(".tags.bcf")
         sg_path = ts_path.with_suffix(".sgz")
         sav_path = ts_path.with_suffix(".sav")
+        genozip_path = ts_path.with_suffix(".genozip")
         if not sg_path.exists:
             print("Skipping missing", sg_path)
             continue
@@ -198,6 +199,7 @@ def file_size(source_pattern, output, suffix, debug):
                 "bcf_size": du(bcf_path),
                 "sgkit_size": du(sg_path),
                 "sav_size": du(sav_path),
+                "genozip_size": du(genozip_path),
             }
         )
         df = pd.DataFrame(data).sort_values("num_samples")

@@ -1,10 +1,15 @@
-all: bcftools savvy-afdist/savvy-afdist
+all: bcftools savvy-afdist/savvy-afdist genozip
 
 bcftools:
 	wget https://github.com/samtools/bcftools/releases/download/1.18/bcftools-1.18.tar.bz2
 	tar -jxvf bcftools-1.18.tar.bz2
 	cd bcftools-1.18 && ./configure && make -j 8
 	cp bcftools-1.18/bcftools ./
+
+genozip:
+	wget https://raw.githubusercontent.com/divonlan/genozip/master/installers/genozip-linux-x86_64.tar
+	tar -xvf genozip-linux-x86_64.tar
+	cp genozip-linux-x86_64/* ./
 
 savvy:
 	python3 -m venv env
@@ -17,8 +22,9 @@ savvy-afdist/savvy-afdist: savvy
 	make -C savvy-afdist
 
 
+
 clean:
-	rm -fR bcftools* savvy*
+	rm -fR bcftools* savvy* geno*
 
 
     
