@@ -1,8 +1,12 @@
+import os
 import pathlib
 import subprocess
 import time
 import dataclasses
 import multiprocessing
+
+# Need to do this to avoid crashes with numba :cry:
+os.environ["SGKIT_DISABLE_NUMBA_CACHE"] = "1"
 
 import psutil
 import humanize
@@ -53,19 +57,47 @@ def time_cli_command(cmd, debug):
     return ProcessTimeResult(wall_time, sys_time, user_time)
 
 
-def run_bcftools_afdist(path, num_threads, debug=False):
+# Note that using fill-tags here needs a bit of justification, because
+# we'd normally assume that it would be included as a pretty basic
+# pre-requisite. However:
+# (a) we're doing the same work on the fly
+# (b) for working with *subsets* you have to do this
+
+
+def run_bcftools_afdist(path, *, num_threads, num_sites, debug=False):
     cmd = (
-        "BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins "
+        "export BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins; "
         "/usr/bin/time -f'%S %U' "
-        f"software/bcftools +af-dist --threads {num_threads} {path}"
+        # Need to run the pipeline in a subshell to make sure we're
+        # timing correctly
+        "sh -c '"
+        f"software/bcftools +fill-tags --threads {num_threads} {path} | "
+        f"software/bcftools +af-dist --threads {num_threads}"
+        "'"
     )
     return time_cli_command(cmd, debug)
 
 
-def run_savvy_afdist(path, num_threads, num_variants, debug=False):
+def run_genozip_afdist(path, *, num_threads, num_sites, debug=False):
+    cmd = (
+        "export BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins; "
+        "/usr/bin/time -f'%S %U' "
+        # Need to run the pipeline in a subshell to make sure we're
+        # timing correctly
+        "sh -c '"
+        f"software/genocat --threads {num_threads} {path} | "
+        f"software/bcftools +fill-tags --threads {num_threads} | "
+        f"software/bcftools +af-dist --threads {num_threads}"
+        "'"
+    )
+    return time_cli_command(cmd, debug)
+
+
+def run_savvy_afdist(path, *, num_threads, num_sites, debug=False):
     cmd = (
         "/usr/bin/time -f'%S %U' "
-        f"software/savvy-afdist/sav-afdist --threads {num_threads} --sav-file {path} --num-variants {num_variants}"
+        f"software/savvy-afdist/sav-afdist --threads {num_threads} "
+        f"--sav-file {path} --num-variants {num_sites}"
     )
     return time_cli_command(cmd, debug)
 
@@ -109,7 +141,7 @@ def sgkit_afdist_worker(ds_path, num_threads, debug, conn):
     conn.send(f"{wall_time} {cpu_times.user} {cpu_times.system}")
 
 
-def run_sgkit_afdist(ds_path, num_threads, debug=False):
+def run_sgkit_afdist(ds_path, *, num_threads, num_sites, debug=False):
     conn1, conn2 = multiprocessing.Pipe()
     p = multiprocessing.Process(
         target=sgkit_afdist_worker, args=(ds_path, num_threads, debug, conn2)
@@ -124,20 +156,32 @@ def run_sgkit_afdist(ds_path, num_threads, debug=False):
     return ProcessTimeResult(wall_time, sys_time, user_time)
 
 
+@dataclasses.dataclass
+class Tool:
+    name: str
+    suffix: str
+    afdist_func: None
+
+
 @click.command()
 @click.argument("source_pattern", type=str)
 @click.argument("output", type=click.Path())
 @click.option("-s", "--suffix", default="")
 @click.option("--debug", is_flag=True)
 def processing_time(source_pattern, output, suffix, debug):
+    tools = [
+        Tool("bcftools", ".bcf", run_bcftools_afdist),
+        Tool("savvy", ".sav", run_savvy_afdist),
+        Tool("genozip", ".genozip", run_genozip_afdist),
+        Tool("sgkit", ".sgz", run_sgkit_afdist),
+    ]
+
     data = []
     for ts_path in pathlib.Path().glob(source_pattern):
         ts = tskit.load(ts_path)
         click.echo(f"{ts_path} n={ts.num_individuals}, m={ts.num_sites}")
-        bcf_path = ts_path.with_suffix(".bcf")
-        bcf_af_path = ts_path.with_suffix(".tags.bcf")
         sg_path = ts_path.with_suffix(".sgz")
-        sav_path = ts_path.with_suffix(".sav")
+
         if not sg_path.exists:
             print("Skipping missing", sg_path)
             continue
@@ -146,29 +190,26 @@ def processing_time(source_pattern, output, suffix, debug):
         assert ts.num_samples // 2 == ds.samples.shape[0]
         assert num_sites == ds.variant_position.shape[0]
         assert np.array_equal(ds.variant_position, ts.tables.sites.position.astype(int))
-        for num_threads in [1, 2, 8]:
-            bcf_time = run_bcftools_afdist(bcf_af_path, num_threads, debug)
-            print("BCF:", bcf_time)
-            sgkit_time = run_sgkit_afdist(sg_path, num_threads, debug)
-            print("SG:", sgkit_time)
-            sav_time = run_savvy_afdist(sav_path, num_threads, num_sites, debug)
-            for result, prog in [
-                (bcf_time, "bcftools"),
-                (sgkit_time, "sgkit"),
-                (sav_time, "savvy"),
-            ]:
-                data.append(
-                    {
-                        "num_samples": ds.samples.shape[0],
-                        "num_sites": ts.num_sites,
-                        "prog": prog,
-                        "threads": num_threads,
-                        "user_time": result.user,
-                        "sys_time": result.system,
-                        "wall_time": result.wall,
-                    }
-                )
 
+        for tool in tools:
+            num_threads = 1
+            tool_path = ts_path.with_suffix(tool.suffix)
+            if debug:
+                print("Running:", tool)
+            result = tool.afdist_func(
+                tool_path, num_threads=num_threads, num_sites=num_sites, debug=debug
+            )
+            data.append(
+                {
+                    "num_samples": ds.samples.shape[0],
+                    "num_sites": ts.num_sites,
+                    "tool": tool.name,
+                    "threads": num_threads,
+                    "user_time": result.user,
+                    "sys_time": result.system,
+                    "wall_time": result.wall,
+                }
+            )
         df = pd.DataFrame(data).sort_values("num_samples")
         df.to_csv(output)
         print(df)
