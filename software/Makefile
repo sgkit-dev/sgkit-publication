@@ -12,16 +12,14 @@ genozip:
 	cp genozip-linux-x86_64/* ./
 
 savvy:
-	python3 -m venv env
-	bash env/bin/activate
-	python -m pip install cget
+	# Assumes cget is installed:
+	# python -m pip install cget;
 	cget install --prefix savvy statgen/savvy
 
 savvy-afdist/savvy-afdist: savvy
-	cmake -DCMAKE_TOOLCHAIN_FILE=../savvy/cget/cget.cmake -DCMAKE_BUILD_TYPE=Release -B savvy-afdist savvy-afdist
+	cmake -DCMAKE_TOOLCHAIN_FILE=../savvy/cget/cget.cmake \
+		-DCMAKE_BUILD_TYPE=Release -B savvy-afdist savvy-afdist
 	make -C savvy-afdist
-
-
 
 clean:
 	rm -fR bcftools* savvy* geno*
