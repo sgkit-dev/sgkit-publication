@@ -210,7 +210,7 @@ def processing_time(source_pattern, output, suffix, debug):
                     "wall_time": result.wall,
                 }
             )
-        df = pd.DataFrame(data).sort_values("num_samples")
+        df = pd.DataFrame(data).sort_values(["num_samples", "tool"])
         df.to_csv(output)
         print(df)
 
