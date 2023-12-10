@@ -21,7 +21,8 @@ def plot_size(ax, df):
     for tool, colour in colour_map.items():
         dfs = df[df.tool == tool]
         dfs = dfs.sort_values("num_samples")
-        ax.loglog(dfs["num_samples"], dfs["size"], ".-", color=colour, label=tool)
+        ax.loglog(dfs["num_samples"].values, dfs["size"].values,
+                ".-", color=colour, label=tool)
         row = dfs.iloc[-1]
         size = humanize.naturalsize(row["size"])
         ax.annotate(
@@ -53,17 +54,30 @@ def plot_total_cpu(ax, df):
 
     for tool in colours.keys():
         dfs = df[(df.threads == 1) & (df.tool == tool)]
+        total_cpu = dfs["user_time"].values + dfs["sys_time"].values
         ax.loglog(
-            dfs["num_samples"],
-            dfs["user_time"],
+            dfs["num_samples"].values,
+            total_cpu,
             label=f"{tool}",
             # linestyle=ls,
             marker=".",
             color=colours[tool],
         )
 
+        # Show wall-time too. Pipeline nature of the bcftools and genozip
+        # commands means that it automatically threads, even if we don't
+        # really want it to.
+        ax.loglog(
+            dfs["num_samples"].values,
+            dfs["wall_time"].values,
+            label=f"{tool}",
+            linestyle=":",
+            # marker=".",
+            color=colours[tool],
+        )
+
         row = dfs.iloc[-1]
-        time = humanize.naturaldelta(row["user_time"])
+        time = humanize.naturaldelta(row["user_time"] + row["sys_time"])
         ax.annotate(
             time,
             textcoords="offset points",
@@ -110,8 +124,8 @@ def data_scaling(size_data, time_data, output):
     Plot the figure showing file size and (basic) processing time scaling
     with sample size.
     """
-    df1 = pd.read_csv(size_data).sort_values("num_samples")
-    df2 = pd.read_csv(time_data).sort_values("num_samples")
+    df1 = pd.read_csv(size_data, index_col=None).sort_values("num_samples")
+    df2 = pd.read_csv(time_data, index_col=False).sort_values("num_samples")
 
     # TODO set the width properly based on document
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 6))
