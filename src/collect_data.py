@@ -210,8 +210,8 @@ def processing_time(source_pattern, output, suffix, debug):
                     "wall_time": result.wall,
                 }
             )
-        df = pd.DataFrame(data).sort_values("num_samples")
-        df.to_csv(output)
+        df = pd.DataFrame(data).sort_values(["num_samples", "tool"])
+        df.to_csv(output, index=False)
         print(df)
 
 
@@ -256,7 +256,7 @@ def file_size(source_pattern, output, suffix, debug):
                 }
             )
             df = pd.DataFrame(data).sort_values(["num_samples", "tool"])
-            df.to_csv(output)
+            df.to_csv(output, index=False)
 
     print(df)
 
