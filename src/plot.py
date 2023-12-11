@@ -10,6 +10,7 @@ sav_colour = "tab:red"
 genozip_colour = "tab:purple"
 
 
+
 def plot_size(ax, df):
     colour_map = {
         "bcf": bcf_colour,
@@ -127,12 +128,56 @@ def data_scaling(size_data, time_data, output):
     plt.savefig(output)
 
 
+def plot_thread_speedup(ax, df, threads):
+    ax.set_title(f"{threads} threads")
+    colours = {"bcftools": bcf_colour, "sgkit": sgkit_colour, "savvy": sav_colour}
+    for prog in colours.keys():
+        base_time = df[(df.threads == 1) & (df.prog == prog)].wall_time.values
+        dfs = df[(df.threads == threads) & (df.prog == prog)]
+        speedup = base_time / dfs.wall_time.values
+        # Can also plot the user-time here as a check - total usertime
+        # should not be much affected by the number of threads
+        ax.semilogx(
+            dfs["num_samples"],
+            speedup,
+            label=f"{prog}",
+            # linestyle=ls,
+            marker=".",
+            color=colours[prog],
+        )
+    ax.legend()
+
+
+@click.command()
+@click.argument("time_data", type=click.File("r"))
+@click.argument("output", type=click.Path())
+def thread_speedup(time_data, output):
+    df1 = pd.read_csv(time_data).sort_values("num_samples")
+    print(df1)
+
+    # # TODO set the width properly based on document
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 8))
+
+    plot_thread_speedup(ax1, df1, 2)
+    plot_thread_speedup(ax2, df1, 8)
+    # plot_time(ax2, df2)
+
+    ax2.set_xlabel("Sample size (diploid)")
+    ax1.set_ylabel("Fold-speedup from 1 thread")
+    ax2.set_ylabel("Fold-speedup from 1 thread")
+    # ax2.set_ylabel("Time (seconds)")
+
+    plt.tight_layout()
+    plt.savefig(output)
+
+
 @click.group()
 def cli():
     pass
 
 
 cli.add_command(data_scaling)
+cli.add_command(thread_speedup)
 
 
 if __name__ == "__main__":
