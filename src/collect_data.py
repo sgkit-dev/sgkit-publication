@@ -163,21 +163,28 @@ class Tool:
     afdist_func: None
 
 
+all_tools = [
+    Tool("savvy", ".sav", run_savvy_afdist),
+    Tool("sgkit", ".sgz", run_sgkit_afdist),
+    Tool("bcftools", ".bcf", run_bcftools_afdist),
+    Tool("genozip", ".genozip", run_genozip_afdist),
+]
+
+
 @click.command()
-@click.argument("source_pattern", type=str)
-@click.argument("output", type=click.Path())
+@click.argument("src", type=click.Path(), nargs=-1)
+@click.argument("output", nargs=1, type=click.Path())
 @click.option("-s", "--suffix", default="")
+@click.option("-t", "--tool", multiple=True, default=[t.name for t in all_tools])
+@click.option("--num-threads", type=int, default=1)
 @click.option("--debug", is_flag=True)
-def processing_time(source_pattern, output, suffix, debug):
-    tools = [
-        Tool("bcftools", ".bcf", run_bcftools_afdist),
-        Tool("savvy", ".sav", run_savvy_afdist),
-        Tool("genozip", ".genozip", run_genozip_afdist),
-        Tool("sgkit", ".sgz", run_sgkit_afdist),
-    ]
+def processing_time(src, output, suffix, tool, num_threads, debug):
+    tool_map = {t.name: t for t in all_tools}
+    tools = [tool_map[tool_name] for tool_name in tool]
 
     data = []
-    for ts_path in pathlib.Path().glob(source_pattern):
+    paths = [pathlib.Path(p) for p in sorted(src)]
+    for ts_path in paths:
         ts = tskit.load(ts_path)
         click.echo(f"{ts_path} n={ts.num_individuals}, m={ts.num_sites}")
         sg_path = ts_path.with_suffix(".sgz")
@@ -192,7 +199,6 @@ def processing_time(source_pattern, output, suffix, debug):
         assert np.array_equal(ds.variant_position, ts.tables.sites.position.astype(int))
 
         for tool in tools:
-            num_threads = 1
             tool_path = ts_path.with_suffix(tool.suffix)
             if debug:
                 print("Running:", tool)
@@ -210,19 +216,20 @@ def processing_time(source_pattern, output, suffix, debug):
                     "wall_time": result.wall,
                 }
             )
-        df = pd.DataFrame(data).sort_values(["num_samples", "tool"])
-        df.to_csv(output, index=False)
-        print(df)
+            df = pd.DataFrame(data).sort_values(["num_samples", "tool"])
+            df.to_csv(output, index=False)
+            print(df)
 
 
 @click.command()
-@click.argument("source_pattern", type=str)
+@click.argument("src", type=click.Path(), nargs=-1)
 @click.argument("output", type=click.Path())
 @click.option("-s", "--suffix", default="")
 @click.option("--debug", is_flag=True)
-def file_size(source_pattern, output, suffix, debug):
+def file_size(src, output, suffix, debug):
+    paths = [pathlib.Path(p) for p in sorted(src)]
     data = []
-    for ts_path in pathlib.Path().glob(source_pattern):
+    for ts_path in paths:
         ts = tskit.load(ts_path)
         click.echo(f"{ts_path} n={ts.num_individuals}, m={ts.num_sites}")
         bcf_path = ts_path.with_suffix(".bcf")
