@@ -57,6 +57,28 @@ def time_cli_command(cmd, debug):
     return ProcessTimeResult(wall_time, sys_time, user_time)
 
 
+def savvy_version():
+    cmd = "./software/savvy/bin/sav --version"
+    out = subprocess.run(cmd, shell=True, check=True, capture_output=True)
+    return out.stdout.decode()
+
+
+def bcftools_version():
+    cmd = "./software/bcftools --version"
+    out = subprocess.run(cmd, shell=True, check=True, capture_output=True)
+    return out.stdout.decode()
+
+
+def genozip_version():
+    cmd = "./software/genozip --version"
+    out = subprocess.run(cmd, shell=True, check=True, capture_output=True)
+    return out.stdout.decode()
+
+
+def sgkit_version():
+    return f"sgkit version: {sg.__version__}"
+
+
 # Note that using fill-tags here needs a bit of justification, because
 # we'd normally assume that it would be included as a pretty basic
 # pre-requisite. However:
@@ -161,13 +183,14 @@ class Tool:
     name: str
     suffix: str
     afdist_func: None
+    version_func: None
 
 
 all_tools = [
-    Tool("savvy", ".sav", run_savvy_afdist),
-    Tool("sgkit", ".sgz", run_sgkit_afdist),
-    Tool("bcftools", ".bcf", run_bcftools_afdist),
-    Tool("genozip", ".genozip", run_genozip_afdist),
+    Tool("savvy", ".sav", run_savvy_afdist, savvy_version),
+    Tool("sgkit", ".sgz", run_sgkit_afdist, sgkit_version),
+    Tool("bcftools", ".bcf", run_bcftools_afdist, bcftools_version),
+    Tool("genozip", ".genozip", run_genozip_afdist, genozip_version),
 ]
 
 
@@ -268,6 +291,13 @@ def file_size(src, output, suffix, debug):
     print(df)
 
 
+@click.command()
+def report_versions():
+    for tool in all_tools:
+        print(tool.name)
+        print(tool.version_func())
+
+
 @click.group()
 def cli():
     pass
@@ -275,6 +305,7 @@ def cli():
 
 cli.add_command(file_size)
 cli.add_command(processing_time)
+cli.add_command(report_versions)
 
 
 if __name__ == "__main__":
