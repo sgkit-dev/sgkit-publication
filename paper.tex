@@ -321,14 +321,23 @@ data for a subset of samples. In practise, this means that calculations
 are limited by I/0 bandwidth.
 
 \begin{figure}
+\begin{tabular}{cc}
 % The source for this figure is a google drawing
 % Currently using
 % https://docs.google.com/drawings/d/1NheB6LCvvkB4C0nAoSFwoYVZ3mtOPaseGmg_mZvcQ8I
 % See https://github.com/pystatgen/sgkit-publication/issues/21 for
 % discussion
-\includegraphics[width=\linewidth]{diagrams/sgkit_xarray_diagram.pdf}
-\caption{The \toolname{sgkit} Xarray data model.}
-\label{fig-data-storage}
+\includegraphics[width=6cm]{diagrams/sgkit_xarray_diagram.pdf} &
+\includegraphics[width=6cm]{figures/data-scaling}
+\end{tabular}
+\caption{Chunked compressed storage of the genotype matrix using Zarr.
+(A) Schematic of the chunked array storage used in sgkit
+[Note: wrong fig. See
+\url{https://github.com/pystatgen/sgkit-publication/issues/46} for
+proposed update].
+(B) Compression performance compared with BCF, savvy and genozip
+based on simulated data (see text for details).
+\label{fig-data-storage}}
 \end{figure}
 
 A simple and elegant solution to providing efficient access to such
@@ -391,7 +400,7 @@ can be tuned. [bit more detail here].
 
 \begin{figure}
 \begin{tabular}{cc}
-\includegraphics[width=6cm]{figures/data-scaling} &
+\includegraphics[width=6cm]{figures/whole-matrix-compute} &
 \begin{tcolorbox}[width=7cm]
 \begin{minted}[fontsize=\footnotesize]{python}
 def sgkit_afdist(ds, num_bins=10):
@@ -423,15 +432,12 @@ df = sgkit_afdist(ds)
 \end{minted}
 \end{tcolorbox}
 \end{tabular}
-\caption{Scaling of file size and compute time with increasing numbers
-of samples.
-(A) File size for bcf, sgkit, savvy and genozip based on subsets
-of the French-Canadian simulations (see text for details).
-(B) Total CPU time required to run \texttt{bcftools +afdist}
+\caption{Whole-matrix compute performance with increasing sample size.
+(A) Total CPU time required to run \texttt{bcftools +afdist}
 and equivalent operations in a single thread for various tools.
 Elapsed time is also reported (dotted line).
-(C) Relative speedup with 8 threads.
-(D) The source code used for the sgkit version of afdist used in these
+(B) Relative speedup with 8 threads.
+(C) The source code used for the sgkit version of afdist used in these
 benchmarks.
 \label{fig-whole-matrix-compute}}
 \end{figure}

@@ -125,30 +125,49 @@ def plot_thread_speedup(ax, df, threads):
 
 @click.command()
 @click.argument("size_data", type=click.File("r"))
-@click.argument("time_data", type=click.File("r"))
 @click.argument("output", type=click.Path())
-def data_scaling(size_data, time_data, output):
+def data_scaling(size_data, output):
     """
-    Plot the figure showing file size and (basic) processing time scaling
-    with sample size.
+    Plot the figure showing file size.
     """
     df1 = pd.read_csv(size_data, index_col=None).sort_values("num_samples")
-    df2 = pd.read_csv(time_data, index_col=False).sort_values("num_samples")
 
     # TODO set the width properly based on document
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(4, 6))
+    fig, ax1 = plt.subplots(1, 1, figsize=(4, 3))
 
     plot_size(ax1, df1)
-    plot_total_cpu(ax2, df2)
-    plot_thread_speedup(ax3, df2, 8)
+    # plot_total_cpu(ax2, df2)
+    # plot_thread_speedup(ax3, df2, 8)
 
-    ax3.set_xlabel("Sample size (diploid)")
+    ax1.set_xlabel("Sample size (diploid)")
     ax1.set_ylabel("File size (bytes)")
-    ax2.set_ylabel("Time (seconds)")
-    ax3.set_ylabel("Fold-speedup from 1 thread")
 
-    ax2.set_title(f"Afdist CPU time")
-    ax3.set_title(f"Threading speedup")
+    plt.tight_layout()
+    plt.savefig(output)
+
+
+@click.command()
+@click.argument("time_data", type=click.File("r"))
+@click.argument("output", type=click.Path())
+def whole_matrix_compute(time_data, output):
+    """
+    Plot the figure showing compute performance on whole-matrix afdist.
+    """
+    df1 = pd.read_csv(time_data, index_col=False).sort_values("num_samples")
+
+    # TODO set the width properly based on document
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 6))
+
+    plot_total_cpu(ax1, df1)
+    plot_thread_speedup(ax2, df1, 8)
+
+    ax2.set_xlabel("Sample size (diploid)")
+    ax1.set_ylabel("Time (seconds)")
+    ax2.set_ylabel("Fold-speedup from 1 thread")
+
+    ax1.set_title(f"Afdist CPU time")
+    ax2.set_title(f"Speedup with 8 threads")
+    ax2.legend()
 
     plt.tight_layout()
     plt.savefig(output)
@@ -160,6 +179,7 @@ def cli():
 
 
 cli.add_command(data_scaling)
+cli.add_command(whole_matrix_compute)
 
 
 if __name__ == "__main__":
