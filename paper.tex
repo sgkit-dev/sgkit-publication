@@ -169,6 +169,101 @@ by combined decades of experience in open-source projects.
 
 
 \section{Results}
+Here is a quick rundown of the sections and what they do:
+
+\begin{itemize}
+\item \textbf{Storing genetic variation data}. High level discussion of
+strategies used to store genotype matrix and accompanying metadata.
+Emphasis on access by variant, not sample. Introduce Zarr, and
+refer to Fig~\ref{fig-data-storage}A to explain columnar storage,
+and Fig~\ref{fig-data-storage}B to show that is competitive
+with highly specialised approaches.
+Note that the FC simulated dataset is probably a best-case
+scenario for methods specialised to patterns in the genotype matrix.
+Discuss storing additional data, and advantages of the
+columnar approach (refs to genomics tools that do the same).
+
+\item \textbf{Computing on the genotype matrix}.
+Compressing data isn't ultimately the point - we want to use it.
+We discuss the problem of running computations on the entire
+genotype matrix, and how different formats limit what can be done.
+We illustrate the discussion by the afdist operation from
+the bcftools plugins package. This is perhaps a contrived example, but
+we chose it because it requires examining the entire genotype matrix
+and there is an efficient implementation available in bcftools.
+It is also a good example because the standard approach of
+divvying up the genome into chunks via HPC schedulers or workflow
+managers is quite tricky.
+We discuss the software development aspect, and how we developed
+the afdist-savvy program. We discuss the inherent limitations
+of the decode-to-vcf strategy, and how this inevitably
+leads to bottlenecks. We discuss parallelism, and why
+bcftools and genozip can make limited use of available cores.
+Also that single-machine parallelism is inevitably constrained
+by IO (which is why savvy's thread utilisation drops off).
+
+\item \textbf{Subsetting the genotype matrix}.
+Existing work overwhelmingly emphasises accessibility by variant.
+We demonstrate that sgkit/zarr is good for getting subsets
+in terms of both variants and samples via afdist on various subsets.
+Discuss why storing AF values for crude population groupings is
+intrinsically bad, and that it should be easy to do calculations
+on aribitrary subsets. Also participants regularly drop-out of
+large studies like UKB - do you update the AF values each time?
+
+\item \textbf{Distributed computation}
+Discuss why the sgkit architecture is suited to distributed
+computation. Discuss Zarr's use in cloud stores, and existing
+deployments. Discuss Dask.
+Discuss Hail. It's awesome, has enabled current
+generation of mega-scale projects. Drawbacks are the
+architecture has emphasised performance etc over adaptability
+and simplicity. File format is undocumented, etc.
+Forward ref to following sections on applications.
+
+\item \textbf{Quality control of large datasets}
+Outline the importance of QC, and existing approaches.
+Summarise sgkit's general QC capabilities.
+We demonstrate sgkit on quality control operations on a large
+real dataset. We convert large messy VCF with lots of additional
+fields. Quote file size numbers. We do some QC operations on
+the dataset, using a good size distributed cluster. Quote
+times.
+
+\item \textbf{Statistical genetics}
+Quick summary of statgen and existing toolchain.
+Summarise sgkit's statgen capabilities.
+Demonstrate sgkit doing a GWAS on real data using distributed cluster.
+Quote numbers.
+
+\item \textbf{Population genetics}
+Quick summary of popgen and existing toolchain.
+Summarise sgkit's popgen capabilities.
+Demonstrate
+sgkit doing popgen analysis based on MalariaGEN data (on cluster?)
+Quote numbers.
+
+\item \textbf{Quantitative genetics}
+Quick summary of quantgen and existing toolchain.
+Summarise sgkit's quantgen capabilities. Emphasise the importance
+of mixed ploidy support.
+Demonstrate sgkit doing some relatedness matrix analyses.
+Quote numbers, possibly relative to existing tools.
+
+\item \textbf{Phylogenetics}
+Quick summary of phylogenetics and existing toolchain.
+Phylo is not one of sgkit's core capabilities, but there's no
+reason it can't support important. Workflows are also becoming
+VCF-based, and massive datasets like SC2 would definitely
+benefit from the ability to distribute.
+
+We demonstrate the potential by doing computing pairwise
+distance matrix from XX samples, and creating a neighbour
+joining tree using scipy (which we emphasise is a terrible
+idea, but still). We showcase sgkit's support for heterogenous
+computing by getting an X-fold speedup on a GPU.
+
+\end{itemize}
 
 \subsection{Chunked storage and distributed computation}
 How we store genetic data fundamentally affects how computation
@@ -233,13 +328,13 @@ are limited by I/0 bandwidth.
 % discussion
 \includegraphics[width=\linewidth]{diagrams/sgkit_xarray_diagram.pdf}
 \caption{The \toolname{sgkit} Xarray data model.}
-\label{fig-data-layout}
+\label{fig-data-storage}
 \end{figure}
 
 A simple and elegant solution to providing efficient access to such
 large matrices across multiple dimensions is to store rectangular
 \emph{chunks} rather than entire rows or columns. This is illustrated
-in Fig~\ref{fig-data-layout}, where we show the basic approach
+in Fig~\ref{fig-data-storage}, where we show the basic approach
 used by sgkit. By storing data in these regular chunks, we
 can efficiently access data for both specific variants \emph{and}
 samples.
@@ -259,7 +354,7 @@ are needed, and not read irrelevant data.
 \subsection{Scaling up interactive analysis}
 The storage and analysis of datasets consisting of hundreds of
 thousands of genomes presents major challenges.
-Fig.~\ref{fig:data_scaling} shows the performance of \toolname{sgkit}
+Fig.~\ref{fig-data-storage} shows the performance of \toolname{sgkit}
 in terms of storage space and computation time  on a simple benchmark (see
 below for details) with increasing
 numbers of samples, contrasting with the standard BCF file format
@@ -280,7 +375,7 @@ sites also increases [following basic popgen principles?].
 The scale of present-day genomic data means that compact
 storage is of paramount importance, and reductions in storage space
 can make a significant difference in overall costs.
-Fig.~\ref{fig:data_scaling}A shows that the
+Fig.~\ref{fig-data-storage}A shows that the
 compressed-chunked-array Zarr format used by \toolname{sgkit} results
 in significantly smaller file-sizes than BCF (encoded using
 \texttt{bcftools view -O b}; we used \toolname{bcftools}
@@ -338,11 +433,11 @@ Elapsed time is also reported (dotted line).
 (C) Relative speedup with 8 threads.
 (D) The source code used for the sgkit version of afdist used in these
 benchmarks.
-\label{fig:data_scaling}}
+\label{fig-whole-matrix-compute}}
 \end{figure}
 
 The scale of modern genomic datasets also means that calculations must
-be parallelised. This is illustrated in Fig.~\ref{fig:data_scaling}B,
+be parallelised. This is illustrated in Fig.~\ref{fig-whole-matrix-compute}B,
 where we compare the performance of a simple calculation requiring
 the examination of all genotypes using \toolname{bcftools}
 and \texttt{sgkit}. Interactive analysis is only possible through
@@ -357,7 +452,7 @@ difficult. Parallelisation by variant and sample is an inherent
 part of \texttt{sgkit}'s design---the variant matrix is chunked
 in two dimensions, and Dask transparently maps computations to these
 chunks.
-Fig.~\ref{fig:data_scaling}B shows how \texttt{sgkit} scales
+Fig.~\ref{fig-whole-matrix-compute}B shows how \texttt{sgkit} scales
 on a single server, and how computation time decreases as we use
 more threads. In contrast, using threads with
 \toolname{bcftools} (via the XXX option) makes almost no difference
@@ -375,15 +470,15 @@ researcher productivity. The ability to define one's \emph{own}
 analyses using familiar Python data-science tools and libraries,
 and to similarly distribute across a cluster (with single-threaded
 speed close to native compiled code) is a game-changer [say better].
-Fig.~\ref{fig:data_scaling}C shows the code used in the benchmark
-for \toolname{sgkit} in Fig.~\ref{fig:data_scaling}B. The heavy
+Fig.~\ref{fig-whole-matrix-compute}C shows the code used in the benchmark
+for \toolname{sgkit} in Fig.~\ref{fig-whole-matrix-compute}B. The heavy
 computation here is done in the \texttt{variant\_stats(ds)} function,
 which computes a set of variables summarising each of the variants
 by examining the entire variant matrix.
 These variables are mostly one-dimensional, and can thefore
 be processed `in-core' using numpy methods very effectively.
 For example, we \texttt{variant\_n\_het} the number of heterozygous samples
-in Fig.~\ref{fig:data_scaling}C. For $n=10^6$ we have X million
+in Fig.~\ref{fig-whole-matrix-compute}C. For $n=10^6$ we have X million
 variants, and the overall size of the data is Y MiB which
 comfortably fits in memory. Thus, the
 \texttt{get\_prob\_dist} function shown here reproduces the functionality
@@ -910,7 +1005,7 @@ The SAV format is an extension of BCF that takes advantage
 of the sparseness of large scale genomic datasets~\citep{lefaive2021sparse}.
 They provide a command line interface and a C++ API.
 
-It is important to note that the example in Fig.~\ref{fig:data_scaling}
+It is important to note that the example in Fig.~\ref{fig-data-storage}
 is something of a best-base
 scenario in terms genomic dataset storage, in that we are only
 storing genotype data (per sample, per variant),
@@ -1128,7 +1223,9 @@ represent in a single notebook.
 \section{Methods}
 
 \subsection{Benchmarking}
-Full details of the benchmarking done in Figure~\ref{fig:data_scaling}.
+Full details of the benchmarking done in
+Figure~\ref{fig-data-storage} and
+Figure~\ref{fig-whole-matrix-compute}.
 Quick notes:
 
 \begin{itemize}
