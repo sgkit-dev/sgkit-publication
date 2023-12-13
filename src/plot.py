@@ -94,17 +94,17 @@ def plot_total_cpu(ax, df):
     #         matplotlib.lines.Line2D([0], [0], lw=2, color="black", linestyle=ls)
     #     )
     #     threads_labels.append(f"{threads} threads")
-    #     for prog in colours.keys():
-    #         dfs = df[(df.threads == threads) & (df.prog == prog)]
+    #     for tool in colours.keys():
+    #         dfs = df[(df.threads == threads) & (df.tool == tool)]
     #         # Can also plot the user-time here as a check - total usertime
     #         # should not be much affected by the number of threads
     #         ax.loglog(
     #             dfs["num_samples"],
     #             dfs["wall_time"],
-    #             label=f"wall+{prog}+t{threads}",
+    #             label=f"wall+{tool}+t{threads}",
     #             linestyle=ls,
     #             marker=".",
-    #             color=colours[prog],
+    #             color=colours[tool],
     #         )
 
     # lines = [
@@ -144,20 +144,22 @@ def data_scaling(size_data, time_data, output):
 
 def plot_thread_speedup(ax, df, threads):
     ax.set_title(f"{threads} threads")
-    colours = {"bcftools": bcf_colour, "sgkit": sgkit_colour, "savvy": sav_colour}
-    for prog in colours.keys():
-        base_time = df[(df.threads == 1) & (df.prog == prog)].wall_time.values
-        dfs = df[(df.threads == threads) & (df.prog == prog)]
+    # colours = {"bcftools": bcf_colour, "sgkit": sgkit_colour, "savvy": sav_colour}
+    colours = {"sgkit": sgkit_colour, "savvy": sav_colour}
+    for tool in colours.keys():
+        base_time = df[(df.threads == 1) & (df.tool == tool)].wall_time.values
+        print(base_time)
+        dfs = df[(df.threads == threads) & (df.tool == tool)]
         speedup = base_time / dfs.wall_time.values
         # Can also plot the user-time here as a check - total usertime
         # should not be much affected by the number of threads
         ax.semilogx(
-            dfs["num_samples"],
+            dfs["num_samples"].values,
             speedup,
-            label=f"{prog}",
+            label=f"{tool}",
             # linestyle=ls,
             marker=".",
-            color=colours[prog],
+            color=colours[tool],
         )
     ax.legend()
 
@@ -172,7 +174,7 @@ def thread_speedup(time_data, output):
     # # TODO set the width properly based on document
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 8))
 
-    plot_thread_speedup(ax1, df1, 2)
+    # plot_thread_speedup(ax1, df1, 2)
     plot_thread_speedup(ax2, df1, 8)
     # plot_time(ax2, df2)
 
