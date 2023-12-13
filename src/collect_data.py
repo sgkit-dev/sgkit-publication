@@ -79,14 +79,10 @@ def sgkit_version():
     return f"sgkit version: {sg.__version__}"
 
 
-# Note that using fill-tags here needs a bit of justification, because
-# we'd normally assume that it would be included as a pretty basic
-# pre-requisite. However:
-# (a) we're doing the same work on the fly
-# (b) for working with *subsets* you have to do this
+# Have to call fill-tags here to get the subset
 
-
-def run_bcftools_afdist(path, *, num_threads, num_sites, debug=False):
+# TODO change the output bcf from fill-tags
+def run_bcftools_afdist_subset(path, *, num_threads, num_sites, debug=False):
     cmd = (
         "export BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins; "
         "/usr/bin/time -f'%S %U' "
@@ -100,7 +96,7 @@ def run_bcftools_afdist(path, *, num_threads, num_sites, debug=False):
     return time_cli_command(cmd, debug)
 
 
-def run_genozip_afdist(path, *, num_threads, num_sites, debug=False):
+def run_genozip_afdist_subset(path, *, num_threads, num_sites, debug=False):
     cmd = (
         "export BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins; "
         "/usr/bin/time -f'%S %U' "
@@ -110,6 +106,29 @@ def run_genozip_afdist(path, *, num_threads, num_sites, debug=False):
         f"software/genocat --threads {num_threads} {path} | "
         f"software/bcftools +fill-tags --threads {num_threads} | "
         f"software/bcftools +af-dist --threads {num_threads}"
+        "'"
+    )
+    return time_cli_command(cmd, debug)
+
+# NOTE! These must be called on a file that has had fill-tags run on it.
+def run_bcftools_afdist(path, *, num_threads, num_sites, debug=False):
+    cmd = (
+        "BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins "
+        "/usr/bin/time -f'%S %U' "
+        f"./software/bcftools +af-dist --threads {num_threads} {path}"
+    )
+    return time_cli_command(cmd, debug)
+
+
+def run_genozip_afdist(path, *, num_threads, num_sites, debug=False):
+    cmd = (
+        "export BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins; "
+        "/usr/bin/time -f'%S %U' "
+        # Need to run the pipeline in a subshell to make sure we're
+        # timing correctly
+        "sh -c '"
+        f"software/genocat --threads {num_threads} {path} | "
+            f"software/bcftools +af-dist --threads {num_threads}"
         "'"
     )
     return time_cli_command(cmd, debug)
@@ -189,19 +208,21 @@ class Tool:
 all_tools = [
     Tool("savvy", ".sav", run_savvy_afdist, savvy_version),
     Tool("sgkit", ".sgz", run_sgkit_afdist, sgkit_version),
-    Tool("bcftools", ".bcf", run_bcftools_afdist, bcftools_version),
-    Tool("genozip", ".genozip", run_genozip_afdist, genozip_version),
+    # Making sure we run on the output of bcftools fill-tags
+    Tool("bcftools", ".tags.bcf", run_bcftools_afdist, bcftools_version),
+    Tool("genozip", ".tags.genozip", run_genozip_afdist, genozip_version),
 ]
 
 
 @click.command()
 @click.argument("src", type=click.Path(), nargs=-1)
 @click.argument("output", nargs=1, type=click.Path())
-@click.option("-s", "--suffix", default="")
 @click.option("-t", "--tool", multiple=True, default=[t.name for t in all_tools])
 @click.option("--num-threads", type=int, default=1)
 @click.option("--debug", is_flag=True)
-def processing_time(src, output, suffix, tool, num_threads, debug):
+def processing_time(src, output, tool, num_threads, debug):
+    if len(src) == 0:
+        raise ValueError("Need at least one input file!")
     tool_map = {t.name: t for t in all_tools}
     tools = [tool_map[tool_name] for tool_name in tool]
 
@@ -247,16 +268,14 @@ def processing_time(src, output, suffix, tool, num_threads, debug):
 @click.command()
 @click.argument("src", type=click.Path(), nargs=-1)
 @click.argument("output", type=click.Path())
-@click.option("-s", "--suffix", default="")
 @click.option("--debug", is_flag=True)
-def file_size(src, output, suffix, debug):
+def file_size(src, output, debug):
     paths = [pathlib.Path(p) for p in sorted(src)]
     data = []
     for ts_path in paths:
         ts = tskit.load(ts_path)
         click.echo(f"{ts_path} n={ts.num_individuals}, m={ts.num_sites}")
         bcf_path = ts_path.with_suffix(".bcf")
-        bcf_af_path = ts_path.with_suffix(".tags.bcf")
         sg_path = ts_path.with_suffix(".sgz")
         sav_path = ts_path.with_suffix(".sav")
         genozip_path = ts_path.with_suffix(".genozip")
