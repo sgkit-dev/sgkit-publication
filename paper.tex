@@ -299,7 +299,7 @@ can be tuned. [bit more detail here].
 \includegraphics[width=6cm]{figures/data-scaling} &
 \begin{tcolorbox}[width=7cm]
 \begin{minted}[fontsize=\footnotesize]{python}
-def get_prob_dist(ds, num_bins=10):
+def sgkit_afdist(ds, num_bins=10):
     bins = np.linspace(0, 1.0, num_bins + 1)
     bins[-1] += 0.01
     af = ds.variant_allele_frequency.values[:, 1]
@@ -321,20 +321,23 @@ def get_prob_dist(ds, num_bins=10):
         "stop": bins[1:],
         "prob_dist":
         count[1:]})
+
+ds = sgkit.load_dataset(ds_path)
+ds = sgkit.variant_stats(ds).compute()
+df = sgkit_afdist(ds)
 \end{minted}
 \end{tcolorbox}
 \end{tabular}
-\caption{Scaling properties of with large genomic data.
-A) The total storage size required for storing a file in BCF format
-(encoded by \texttt{bcftools view -O b}), and \texttt{sgkit}'s zarr
-format (using XXX).
-B) The elapsed wall-clock time required to calculate [DESCRIBE]
-using the \texttt{af-dist} plugin for \texttt{bcftools} and
-an equivalent calculation using \texttt{sgkit}.
-Subsets of the simulations of~\citep{anderson2023genes} are used.
-C) Source code for the allele frequency distribution calculation
-in sgkit.
-[NOTE:draft layout. ]
+\caption{Scaling of file size and compute time with increasing numbers
+of samples.
+(A) File size for bcf, sgkit, savvy and genozip based on subsets
+of the French-Canadian simulations (see text for details).
+(B) Total CPU time required to run \texttt{bcftools +afdist}
+and equivalent operations in a single thread for various tools.
+Elapsed time is also reported (dotted line).
+(C) Relative speedup with 8 threads.
+(D) The source code used for the sgkit version of afdist used in these
+benchmarks.
 \label{fig:data_scaling}}
 \end{figure}
 
@@ -1122,7 +1125,33 @@ represent in a single notebook.
 
 \end{itemize}
 
+\section{Methods}
 
+\subsection{Benchmarking}
+Full details of the benchmarking done in Figure~\ref{fig:data_scaling}.
+Quick notes:
+
+\begin{itemize}
+\item Dataset is based on subsets of French-Canadian sims. We simplify
+for increasingly large subsets, keeping only variant sites. We then
+convert to VCF and encode to BCF using
+\texttt{tskit vcf | bcftools view -O b}.
+\item We used a chunk size of XX for sgkit, after some experimentation.
+This gave n files of around x MB each for the ``call\_genotypes`` array.
+We used the defaults for savvy and genozip.
+\item For the afdist CPU time we measure the sum of the total user and
+system times required to execute the full command, as reported by GNU
+time. Each tool was instructed to use one thread, where the options
+were provided. For genozip, the time required to compute
+\texttt{genocat file.genozip | bcftools +af-dist}. Because commands
+in the pipeline execute concurrently on mutiple cores, the total CPU time is
+greater than the elapsed time.
+\item For the threading speedup plot, we report the time required to compute
+afdist with 8 threads relative to 1 thread (a speedup of 8 is therefore
+the maximum). For savvy, our C++ implementation of afdist calculates
+on 8 chunks of genome, and aggegates once they are completed.
+Bcftools has a ``--threads`` option, but it only applies to decoding.
+\end{itemize}
 \section{Acknowledgments}
 
 \bibliography{paper.bib}
