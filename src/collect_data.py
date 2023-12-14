@@ -418,7 +418,7 @@ def subset_processing_time(src, output, tool, num_threads, debug):
                     {
                         "num_samples": ds.samples.shape[0],
                         "num_sites": ts.num_sites,
-                        "slice:": slice_id,
+                        "slice": slice_id,
                         "tool": tool.name,
                         "threads": num_threads,
                         "user_time": result.user,
