@@ -171,8 +171,8 @@ by combined decades of experience in open-source projects.
 \section{Results}
 Here is a quick rundown of the sections and what they do:
 
-\begin{itemize}
-\item \textbf{Storing genetic variation data}. High level discussion of
+\paragraph{Storing genetic variation data}
+High level discussion of
 strategies used to store genotype matrix and accompanying metadata.
 Emphasis on access by variant, not sample. Introduce Zarr, and
 refer to Fig~\ref{fig-data-storage}A to explain columnar storage,
@@ -183,7 +183,7 @@ scenario for methods specialised to patterns in the genotype matrix.
 Discuss storing additional data, and advantages of the
 columnar approach (refs to genomics tools that do the same).
 
-\item \textbf{Computing on the genotype matrix}.
+\paragraph{Computing on the genotype matrix}
 Compressing data isn't ultimately the point - we want to use it.
 We discuss the problem of running computations on the entire
 genotype matrix, and how different formats limit what can be done.
@@ -201,8 +201,9 @@ leads to bottlenecks. We discuss parallelism, and why
 bcftools and genozip can make limited use of available cores.
 Also that single-machine parallelism is inevitably constrained
 by IO (which is why savvy's thread utilisation drops off).
+Figure: \ref{fig-whole-matrix-compute}.
 
-\item \textbf{Subsetting the genotype matrix}.
+\paragraph{Subsetting the genotype matrix}
 Existing work overwhelmingly emphasises accessibility by variant.
 We demonstrate that sgkit/zarr is good for getting subsets
 in terms of both variants and samples via afdist on various subsets.
@@ -211,46 +212,58 @@ intrinsically bad, and that it should be easy to do calculations
 on aribitrary subsets. Also participants regularly drop-out of
 large studies like UKB - do you update the AF values each time?
 
-\item \textbf{Distributed computation}
-Discuss why the sgkit architecture is suited to distributed
-computation. Discuss Zarr's use in cloud stores, and existing
-deployments. Discuss Dask.
+\paragraph{Distributed computation}
+Why do we need distributed compute? Summary of current
+approaches (chunk up along the genome using HPC or workflow
+managers). Advantages of true distributed compute, MapReduce
+etc. Summary of earlier efforts like ADAM.
 Discuss Hail. It's awesome, has enabled current
 generation of mega-scale projects. Drawbacks are the
 architecture has emphasised performance etc over adaptability
 and simplicity. File format is undocumented, etc.
-Forward ref to following sections on applications.
+Discuss why the sgkit architecture is suited to distributed
+computation. Discuss Zarr's use in cloud stores, and existing
+deployments. Discuss Dask.
+We do not attempt a head-to-head performance comparison with
+Hail here, but defer to Liangde's thesis~\citep{li2022efficient}
+with brief summary.
+Forward ref to following sections on applications to demonstate
+sgkit in a distributed context.
 
-\item \textbf{Quality control of large datasets}
+\paragraph{Quality control of large datasets}
 Outline the importance of QC, and existing approaches.
 Summarise sgkit's general QC capabilities.
 We demonstrate sgkit on quality control operations on a large
 real dataset. We convert large messy VCF with lots of additional
 fields. Quote file size numbers. We do some QC operations on
-the dataset, using a good size distributed cluster. Quote
-times.
+the dataset, using a good size distributed cluster, using
+some of the additional fields. Quote times. Discuss Xarray
+here, and possibly illustrate the labelled dimensioned arrays
+here via a figure (perhaps a screenshot/pdf conversion of
+a Jupyter notebook rendering of the big messy dataset,
+showing the various fields).
 
-\item \textbf{Statistical genetics}
+\paragraph{Statistical genetics}
 Quick summary of statgen and existing toolchain.
 Summarise sgkit's statgen capabilities.
 Demonstrate sgkit doing a GWAS on real data using distributed cluster.
 Quote numbers.
 
-\item \textbf{Population genetics}
+\paragraph{Population genetics}
 Quick summary of popgen and existing toolchain.
 Summarise sgkit's popgen capabilities.
 Demonstrate
 sgkit doing popgen analysis based on MalariaGEN data (on cluster?)
 Quote numbers.
 
-\item \textbf{Quantitative genetics}
+\paragraph{Quantitative genetics}
 Quick summary of quantgen and existing toolchain.
 Summarise sgkit's quantgen capabilities. Emphasise the importance
 of mixed ploidy support.
 Demonstrate sgkit doing some relatedness matrix analyses.
 Quote numbers, possibly relative to existing tools.
 
-\item \textbf{Phylogenetics}
+\paragraph{Phylogenetics}
 Quick summary of phylogenetics and existing toolchain.
 Phylo is not one of sgkit's core capabilities, but there's no
 reason it can't support important. Workflows are also becoming
@@ -263,7 +276,7 @@ joining tree using scipy (which we emphasise is a terrible
 idea, but still). We showcase sgkit's support for heterogenous
 computing by getting an X-fold speedup on a GPU.
 
-\end{itemize}
+\section{Older text}
 
 \subsection{Chunked storage and distributed computation}
 How we store genetic data fundamentally affects how computation
