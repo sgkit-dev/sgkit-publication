@@ -10,7 +10,6 @@ sav_colour = "tab:red"
 genozip_colour = "tab:purple"
 
 
-
 def plot_size(ax, df):
     colour_map = {
         "bcf": bcf_colour,
@@ -19,15 +18,22 @@ def plot_size(ax, df):
         "genozip": genozip_colour,
     }
 
+    GB = 2**30
+
     for tool, colour in colour_map.items():
         dfs = df[df.tool == tool]
         dfs = dfs.sort_values("num_samples")
-        ax.loglog(dfs["num_samples"].values, dfs["size"].values,
-                ".-", color=colour, label=tool)
+        ax.loglog(
+            dfs["num_samples"].values,
+            dfs["size"].values,
+            ".-",
+            color=colour,
+            label=tool,
+        )
         row = dfs.iloc[-1]
-        size = humanize.naturalsize(row["size"])
+        size = row["size"] / GB
         ax.annotate(
-            size,
+            f"{size:.0f}G",
             textcoords="offset points",
             xytext=(15, 0),
             xy=(row.num_samples, row["size"]),
@@ -41,6 +47,7 @@ def plot_size(ax, df):
     ax2 = ax.twiny()
     ax2.set_xlim(ax.get_xlim())
     ax2.set_xscale("log")
+    ax2.set_xlabel("Number of variants")
     ax2.set_xticks(num_samples)
     ax2.set_xticklabels([humanize.metric(m) for m in num_sites])
 
@@ -76,81 +83,31 @@ def plot_total_cpu(ax, df):
             # marker=".",
             color=colours[tool],
         )
-
         row = dfs.iloc[-1]
-        time = humanize.naturaldelta(row["user_time"] + row["sys_time"])
+
+        hours = total_cpu[-1] // 3600
+
         ax.annotate(
-            time,
+            f"{hours:.0f}h",
             textcoords="offset points",
             xytext=(15, 0),
-            xy=(row.num_samples, row["user_time"]),
+            xy=(row.num_samples, total_cpu[-1]),
             xycoords="data",
         )
 
-    # threads_lines = []
-    # threads_labels = []
-    # # for threads, ls in zip([1, 2, 8], ["solid", "dashed", "dotted"]):
-    #     threads_lines.append(
-    #         matplotlib.lines.Line2D([0], [0], lw=2, color="black", linestyle=ls)
-    #     )
-    #     threads_labels.append(f"{threads} threads")
-    #     for tool in colours.keys():
-    #         dfs = df[(df.threads == threads) & (df.tool == tool)]
-    #         # Can also plot the user-time here as a check - total usertime
-    #         # should not be much affected by the number of threads
-    #         ax.loglog(
-    #             dfs["num_samples"],
-    #             dfs["wall_time"],
-    #             label=f"wall+{tool}+t{threads}",
-    #             linestyle=ls,
-    #             marker=".",
-    #             color=colours[tool],
-    #         )
-
-    # lines = [
-    #     matplotlib.lines.Line2D([0], [0], color=colour, lw=2)
-    #     for colour in colours.values()
-    # ]
-    # l1 = ax.legend(lines, list(colours.keys()))
-    # ax.add_artist(l1)
-    # ax.legend(threads_lines, threads_labels, loc="lower right")
-
-
-@click.command()
-@click.argument("size_data", type=click.File("r"))
-@click.argument("time_data", type=click.File("r"))
-@click.argument("output", type=click.Path())
-def data_scaling(size_data, time_data, output):
-    """
-    Plot the figure showing file size and (basic) processing time scaling
-    with sample size.
-    """
-    df1 = pd.read_csv(size_data, index_col=None).sort_values("num_samples")
-    df2 = pd.read_csv(time_data, index_col=False).sort_values("num_samples")
-
-    # TODO set the width properly based on document
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 6))
-
-    plot_size(ax1, df1)
-    plot_total_cpu(ax2, df2)
-
-    ax2.set_xlabel("Sample size (diploid)")
-    ax1.set_ylabel("File size (bytes)")
-    ax2.set_ylabel("Time (seconds)")
-
-    plt.tight_layout()
-    plt.savefig(output)
-
 
 def plot_thread_speedup(ax, df, threads):
-    ax.set_title(f"{threads} threads")
-    # colours = {"bcftools": bcf_colour, "sgkit": sgkit_colour, "savvy": sav_colour}
-    colours = {"sgkit": sgkit_colour, "savvy": sav_colour}
+    colours = {
+        "bcftools": bcf_colour,
+        "sgkit": sgkit_colour,
+        "savvy": sav_colour,
+        "genozip": genozip_colour,
+    }
+    # colours = {"sgkit": sgkit_colour, "savvy": sav_colour}
     for tool in colours.keys():
         base_time = df[(df.threads == 1) & (df.tool == tool)].wall_time.values
-        print(base_time)
         dfs = df[(df.threads == threads) & (df.tool == tool)]
-        speedup = base_time / dfs.wall_time.values
+        speedup = base_time[: len(dfs)] / dfs.wall_time.values
         # Can also plot the user-time here as a check - total usertime
         # should not be much affected by the number of threads
         ax.semilogx(
@@ -161,27 +118,56 @@ def plot_thread_speedup(ax, df, threads):
             marker=".",
             color=colours[tool],
         )
-    ax.legend()
+        row = dfs.iloc[-1]
+        # print(tool, "n=", row.num_samples, "wall time:", row.wall_time)
+    # ax.legend()
+
+
+@click.command()
+@click.argument("size_data", type=click.File("r"))
+@click.argument("output", type=click.Path())
+def data_scaling(size_data, output):
+    """
+    Plot the figure showing file size.
+    """
+    df1 = pd.read_csv(size_data, index_col=None).sort_values("num_samples")
+
+    # TODO set the width properly based on document
+    fig, ax1 = plt.subplots(1, 1, figsize=(4, 3))
+
+    plot_size(ax1, df1)
+    # plot_total_cpu(ax2, df2)
+    # plot_thread_speedup(ax3, df2, 8)
+
+    ax1.set_xlabel("Sample size (diploid)")
+    ax1.set_ylabel("File size (bytes)")
+
+    plt.tight_layout()
+    plt.savefig(output)
 
 
 @click.command()
 @click.argument("time_data", type=click.File("r"))
 @click.argument("output", type=click.Path())
-def thread_speedup(time_data, output):
-    df1 = pd.read_csv(time_data).sort_values("num_samples")
-    print(df1)
+def whole_matrix_compute(time_data, output):
+    """
+    Plot the figure showing compute performance on whole-matrix afdist.
+    """
+    df1 = pd.read_csv(time_data, index_col=False).sort_values("num_samples")
 
-    # # TODO set the width properly based on document
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 8))
+    # TODO set the width properly based on document
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 6))
 
-    # plot_thread_speedup(ax1, df1, 2)
+    plot_total_cpu(ax1, df1)
     plot_thread_speedup(ax2, df1, 8)
-    # plot_time(ax2, df2)
 
     ax2.set_xlabel("Sample size (diploid)")
-    ax1.set_ylabel("Fold-speedup from 1 thread")
+    ax1.set_ylabel("Time (seconds)")
     ax2.set_ylabel("Fold-speedup from 1 thread")
-    # ax2.set_ylabel("Time (seconds)")
+
+    ax1.set_title(f"Afdist CPU time")
+    ax2.set_title(f"Speedup with 8 threads")
+    ax2.legend()
 
     plt.tight_layout()
     plt.savefig(output)
@@ -193,7 +179,7 @@ def cli():
 
 
 cli.add_command(data_scaling)
-cli.add_command(thread_speedup)
+cli.add_command(whole_matrix_compute)
 
 
 if __name__ == "__main__":
