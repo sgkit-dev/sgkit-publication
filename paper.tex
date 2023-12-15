@@ -417,13 +417,14 @@ can be tuned. [bit more detail here].
 \begin{tcolorbox}[width=7cm]
 \begin{minted}[fontsize=\footnotesize]{python}
 def sgkit_afdist(ds, num_bins=10):
+    ds_vs = sgkit.variant_stats(ds).compute()
     bins = np.linspace(0, 1.0, num_bins + 1)
     bins[-1] += 0.01
-    af = ds.variant_allele_frequency.values[:, 1]
+    af = ds_vs.variant_allele_frequency.values[:, 1]
     pRA = 2 * af * (1 - af)
     pAA = af * af
-    hets = ds.variant_n_het.values
-    homs = ds.variant_n_hom_alt.values
+    hets = ds_vs.variant_n_het.values
+    homs = ds_vs.variant_n_hom_alt.values
     a = np.bincount(
         np.digitize(pRA, bins),
         weights=hets,
@@ -440,7 +441,6 @@ def sgkit_afdist(ds, num_bins=10):
         count[1:]})
 
 ds = sgkit.load_dataset(ds_path)
-ds = sgkit.variant_stats(ds).compute()
 df = sgkit_afdist(ds)
 \end{minted}
 \end{tcolorbox}
@@ -533,6 +533,39 @@ is state-of-the-art, but to contrast the approach we have taken
 with VCF (as the standard storage format) and to demonstrate
 the scalability and efficiency of \toolname{sgkit} as an analysis
 platform.
+
+
+\begin{figure}
+\begin{tabular}{cc}
+\includegraphics[width=6cm]{figures/subset-matrix-compute} &
+\begin{tcolorbox}[width=7cm]
+\begin{minted}[fontsize=\footnotesize]{python}
+ds = sgkit.load_dataset(ds_path)
+dss = ds.isel(
+    variants=slice(...),
+    samples=(slice(...)))
+df = sgkit_afdist(dss)
+
+# bcftools
+bcftools view PATH -S ... -r...
+| bcftools +fill-tags | bcftools +af-dist
+
+# genozip
+genocat PATH -r ... -s ...
+| bcftools +fill-tags | bcftools +af-dist
+\end{minted}
+\end{tcolorbox}
+\end{tabular}
+\caption{Whole-matrix compute performance with increasing sample size.
+(A) Total CPU time required to run the afdist calculation for
+a subset of 10 samples and 10000 variants from the middle of the matrix.
+(B) Same for n/2 samples. Genozip did not run in this case for
+$n > 10^4$ samples because it does not support a file to specify
+sample IDs, and the command line was therefore too long for the shell
+to execute.
+(C) A simplified version of the source code used for these benchmarks.
+\label{fig-subset-matrix-compute}}
+\end{figure}
 
 
 \subsection{Sgkit design principles}

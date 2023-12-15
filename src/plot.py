@@ -178,7 +178,7 @@ def plot_subset_time(ax, df):
         "bcftools": bcf_colour,
         "sgkit": sgkit_colour,
         # "savvy": sav_colour,
-        # "genozip": genozip_colour,
+        "genozip": genozip_colour,
     }
 
     for tool in colours.keys():
