@@ -94,9 +94,6 @@ def write_sample_names(ds, sample_slice, f):
     f.flush()
 
 
-
-
-# TODO change the output bcf from fill-tags
 def run_bcftools_afdist_subset(
     path, ds, variant_slice, sample_slice, *, num_threads, debug=False
 ):
@@ -140,6 +137,30 @@ def run_genozip_afdist(path, *, num_threads, num_sites, debug=False):
         # timing correctly
         "sh -c '"
         f"software/genocat --threads {num_threads} {path} | "
+        f"software/bcftools +af-dist --threads {num_threads}"
+        "'"
+    )
+    return time_cli_command(cmd, debug)
+
+
+def run_genozip_afdist_subset(
+    path, ds, variant_slice, sample_slice, *, num_threads, debug=False
+):
+    region = get_variant_slice_region(ds, variant_slice)
+    # There's no "file" option for specifying samples with genozip,
+    # so have to put on the command line. Hopefully this won't
+    # break things
+    samples = ",".join(ds.sample_id[sample_slice].values)
+    cmd = (
+        "export BCFTOOLS_PLUGINS=software/bcftools-1.18/plugins; "
+        "/usr/bin/time -f'%S %U' "
+        # Need to run the pipeline in a subshell to make sure we're
+        # timing correctly
+        "sh -c '"
+        # f"software/bcftools view -I -r {region} -S {f.name} "
+        f"software/genocat -r {region} -s {samples} "
+        f"--threads {num_threads} {path} | "
+        f"software/bcftools +fill-tags -Ou --threads {num_threads} | "
         f"software/bcftools +af-dist --threads {num_threads}"
         "'"
     )
@@ -255,7 +276,13 @@ all_tools = [
         run_bcftools_afdist_subset,
         bcftools_version,
     ),
-    Tool("genozip", ".tags.genozip", run_genozip_afdist, None, genozip_version),
+    Tool(
+        "genozip",
+        ".tags.genozip",
+        run_genozip_afdist,
+        run_genozip_afdist_subset,
+        genozip_version,
+    ),
 ]
 
 
