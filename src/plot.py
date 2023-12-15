@@ -173,6 +173,77 @@ def whole_matrix_compute(time_data, output):
     plt.savefig(output)
 
 
+def plot_subset_time(ax, df):
+    colours = {
+        "bcftools": bcf_colour,
+        "sgkit": sgkit_colour,
+        # "savvy": sav_colour,
+        "genozip": genozip_colour,
+    }
+
+    for tool in colours.keys():
+        dfs = df[(df.threads == 1) & (df.tool == tool)]
+        total_cpu = dfs["user_time"].values + dfs["sys_time"].values
+        n = dfs["num_samples"].values
+        ax.loglog(
+            n,
+            total_cpu,
+            label=f"{tool}",
+            # linestyle=ls,
+            marker=".",
+            color=colours[tool],
+        )
+
+        # Show wall-time too. Pipeline nature of the bcftools and genozip
+        # commands means that it automatically threads, even if we don't
+        # really want it to.
+        ax.loglog(
+            n,
+            dfs["wall_time"].values,
+            label=f"{tool}",
+            linestyle=":",
+            # marker=".",
+            color=colours[tool],
+        )
+        row = dfs.iloc[-1]
+
+        hours = total_cpu[-1]  # // 60
+
+        ax.annotate(
+            f"{hours:.0f}s",
+            textcoords="offset points",
+            xytext=(15, 0),
+            xy=(row.num_samples, total_cpu[-1]),
+            xycoords="data",
+        )
+
+
+@click.command()
+@click.argument("data", type=click.File("r"))
+@click.argument("output", type=click.Path())
+def subset_matrix_compute(data, output):
+    """
+    Plot the figure showing compute performance on subsets of matrix afdist.
+    """
+    df = pd.read_csv(data, index_col=False).sort_values("num_samples")
+
+    # TODO set the width properly based on document
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 6))
+    plot_subset_time(ax1, df[df.slice == "n10"])
+    plot_subset_time(ax2, df[df.slice == "n/2"])
+
+    ax2.set_xlabel("Sample size (diploid)")
+    ax1.set_ylabel("Time (seconds)")
+    ax1.set_ylabel("Time (seconds)")
+
+    ax1.set_title(f"10 samples")
+    ax2.set_title(f"n / 2 samples")
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.savefig(output)
+
+
 @click.group()
 def cli():
     pass
@@ -180,6 +251,7 @@ def cli():
 
 cli.add_command(data_scaling)
 cli.add_command(whole_matrix_compute)
+cli.add_command(subset_matrix_compute)
 
 
 if __name__ == "__main__":
