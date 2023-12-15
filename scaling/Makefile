@@ -31,7 +31,10 @@ simulated_chrom_1.ts.tsz:
 	${SAVVY} import --phasing full $< > $@
 
 %.genozip: %.bcf
-	${GENOZIP} --no-test $< -o $@
+	# There's some weird bug in genocat that doesn't allow us 
+	# to run --samples on output if it's derived directly from
+	# bcf, so we have to filter it through bcftools first.
+	${BCFTOOLS} view $< | ${GENOZIP} --no-test -o $@
 
 # NOTES here for now
 # it's quite hard to find something that bcftools does that just
