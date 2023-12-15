@@ -94,7 +94,6 @@ def write_sample_names(ds, sample_slice, f):
     f.flush()
 
 
-# Have to call fill-tags here to get the subset
 
 
 # TODO change the output bcf from fill-tags
@@ -114,8 +113,9 @@ def run_bcftools_afdist_subset(
             # it doesn't update AF (which +af-dist uses). So, we use
             # -I to prevent it updating, and then call fill-tags
             f"software/bcftools view -I -r {region} -S {f.name} "
-            f"--threads {num_threads} {path} | "
-            f"software/bcftools +fill-tags --threads {num_threads} | "
+            # Output uncompressed BCF to make pipeline more efficient
+            f"-Ou --threads {num_threads} {path} | "
+            f"software/bcftools +fill-tags -Ou --threads {num_threads} | "
             f"software/bcftools +af-dist --threads {num_threads}"
             "'"
         )

@@ -1267,6 +1267,11 @@ afdist with 8 threads relative to 1 thread (a speedup of 8 is therefore
 the maximum). For savvy, our C++ implementation of afdist calculates
 on 8 chunks of genome, and aggegates once they are completed.
 Bcftools has a ``--threads`` option, but it only applies to decoding.
+\item Where possible in pipelines we use uncompressed BCF
+ output \texttt{-Ou} to make processing more efficient (skip printf
+and parsing costs, which are substantial).
+\item We do not use BCF output in genozip because it doesn't support
+it directly, only VCF (supports BCF by pipeing through bcftools).
 \end{itemize}
 \section{Acknowledgments}
 
