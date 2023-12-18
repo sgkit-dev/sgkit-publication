@@ -395,9 +395,10 @@ def midslice(n, k):
 @click.argument("src", type=click.Path(), nargs=-1)
 @click.argument("output", nargs=1, type=click.Path())
 @click.option("-t", "--tool", multiple=True, default=[t.name for t in all_tools])
+@click.option("-s", "--slice-id", multiple=True, default=["n10", "n/2"])
 @click.option("--num-threads", type=int, default=1)
 @click.option("--debug", is_flag=True)
-def subset_processing_time(src, output, tool, num_threads, debug):
+def subset_processing_time(src, output, tool, slice_id, num_threads, debug):
     if len(src) == 0:
         raise ValueError("Need at least one input file!")
     tool_map = {t.name: t for t in all_tools}
@@ -428,7 +429,8 @@ def subset_processing_time(src, output, tool, num_threads, debug):
             ),
         }
 
-        for slice_id, (variant_slice, sample_slice) in slices.items():
+        for sid in slice_id:
+            variant_slice, sample_slice = slices[sid]
             for tool in tools:
                 tool_path = ts_path.with_suffix(tool.suffix)
                 if debug:
@@ -445,7 +447,7 @@ def subset_processing_time(src, output, tool, num_threads, debug):
                     {
                         "num_samples": ds.samples.shape[0],
                         "num_sites": ts.num_sites,
-                        "slice": slice_id,
+                        "slice": sid,
                         "tool": tool.name,
                         "threads": num_threads,
                         "user_time": result.user,
