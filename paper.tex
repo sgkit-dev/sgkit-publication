@@ -540,6 +540,9 @@ platform.
 \includegraphics[width=6cm]{figures/subset-matrix-compute} &
 \begin{tcolorbox}[width=7cm]
 \begin{minted}[fontsize=\footnotesize]{python}
+# TODO not sure how best to illustrate this. Trying out various
+# options
+
 ds = sgkit.load_dataset(ds_path)
 dss = ds.isel(
     variants=slice(...),
@@ -553,6 +556,20 @@ bcftools view PATH -S ... -r...
 # genozip
 genocat PATH -r ... -s ...
 | bcftools +fill-tags | bcftools +af-dist
+
+# Complex query
+df = pd.read_csv("sample_info.csv",
+    sep="\t").set_index("sample_id")
+dss = ds.isel(
+    samples=df.decade[ds.sample_id.values] >= 1950)
+sgkit_afdist(dss)
+
+# Corresponding shell
+tail -n+2 sample_info.csv | awk '$2 >= 1950'
+    | cut -f1 > samples.txt
+bcftools view PATH -s samples.txt
+    | bcftools +fill-tags | bcftools +af-dist
+
 \end{minted}
 \end{tcolorbox}
 \end{tabular}
