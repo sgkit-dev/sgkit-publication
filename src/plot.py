@@ -96,6 +96,37 @@ def plot_total_cpu(ax, df):
         )
 
 
+def plot_wall_time(ax, df, threads=1):
+    colours = {
+        "bcftools": bcf_colour,
+        "genozip": genozip_colour,
+        "sgkit": sgkit_colour,
+        "savvy": sav_colour,
+    }
+
+    for tool in df.tool.unique():
+        dfs = df[(df.threads == threads) & (df.tool == tool)]
+        wall_time = dfs["wall_time"].values
+        ax.loglog(
+            dfs["num_samples"].values,
+            wall_time,
+            label=f"{tool}",
+            # linestyle=ls,
+            marker=".",
+            color=colours[tool],
+        )
+
+        hours = wall_time[-1] / 3600
+        row = dfs.iloc[-1]
+        print(tool, hours)
+        ax.annotate(
+            f"{hours:.1f}h",
+            textcoords="offset points",
+            xytext=(15, 0),
+            xy=(row.num_samples, wall_time[-1]),
+            xycoords="data",
+        )
+
 def plot_thread_speedup(ax, df, threads):
     colours = {
         "bcftools": bcf_colour,
@@ -104,7 +135,7 @@ def plot_thread_speedup(ax, df, threads):
         "genozip": genozip_colour,
     }
     # colours = {"sgkit": sgkit_colour, "savvy": sav_colour}
-    for tool in colours.keys():
+    for tool in df.tool.unique():
         base_time = df[(df.threads == 1) & (df.tool == tool)].wall_time.values
         dfs = df[(df.threads == threads) & (df.tool == tool)]
         speedup = base_time[: len(dfs)] / dfs.wall_time.values
@@ -136,8 +167,6 @@ def data_scaling(size_data, output):
     fig, ax1 = plt.subplots(1, 1, figsize=(4, 3))
 
     plot_size(ax1, df1)
-    # plot_total_cpu(ax2, df2)
-    # plot_thread_speedup(ax3, df2, 8)
 
     ax1.set_xlabel("Sample size (diploid)")
     ax1.set_ylabel("File size (bytes)")
@@ -153,13 +182,14 @@ def whole_matrix_compute(time_data, output):
     """
     Plot the figure showing compute performance on whole-matrix afdist.
     """
-    df1 = pd.read_csv(time_data, index_col=False).sort_values("num_samples")
+    df = pd.read_csv(time_data, index_col=False).sort_values("num_samples")
+    df = df[df.storage == "hdd"]
 
     # TODO set the width properly based on document
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 6))
 
-    plot_total_cpu(ax1, df1)
-    plot_thread_speedup(ax2, df1, 8)
+    plot_total_cpu(ax1, df)
+    plot_thread_speedup(ax2, df, 8)
 
     ax2.set_xlabel("Sample size (diploid)")
     ax1.set_ylabel("Time (seconds)")
@@ -172,6 +202,36 @@ def whole_matrix_compute(time_data, output):
     plt.tight_layout()
     plt.savefig(output)
 
+
+@click.command()
+@click.argument("time_data", type=click.File("r"))
+@click.argument("output", type=click.Path())
+def whole_matrix_compute_supplemental(time_data, output):
+    """
+    Plot the figure showing compute performance on whole-matrix afdist.
+    """
+    df = pd.read_csv(time_data, index_col=False).sort_values("num_samples")
+    df = df[(df.tool == "sgkit") | (df.tool == "savvy")]
+
+    # TODO set the width properly based on document
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 6))
+
+    df_hdd = df[df.storage=="hdd"]
+    plot_wall_time(ax1, df_hdd, 8)
+    plot_wall_time(ax1, df_hdd, 8)
+    plot_thread_speedup(ax2, df_hdd, 8)
+
+
+    ax2.set_xlabel("Sample size (diploid)")
+    ax1.set_ylabel("Wall time (seconds)")
+    ax2.set_ylabel("Fold-speedup from 1 thread")
+
+    ax1.set_title(f"Afdist CPU time (8 threads)")
+    ax2.set_title(f"Speedup with 8 threads")
+    ax1.legend()
+
+    plt.tight_layout()
+    plt.savefig(output)
 
 def plot_subset_time(ax, df):
     colours = {
@@ -251,6 +311,7 @@ def cli():
 
 cli.add_command(data_scaling)
 cli.add_command(whole_matrix_compute)
+cli.add_command(whole_matrix_compute_supplemental)
 cli.add_command(subset_matrix_compute)
 
 
