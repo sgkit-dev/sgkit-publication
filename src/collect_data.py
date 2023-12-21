@@ -290,9 +290,10 @@ all_tools = [
 @click.argument("src", type=click.Path(), nargs=-1)
 @click.argument("output", nargs=1, type=click.Path())
 @click.option("-t", "--tool", multiple=True, default=[t.name for t in all_tools])
+@click.option("-s", "--storage", default="hdd")
 @click.option("--num-threads", type=int, default=1)
 @click.option("--debug", is_flag=True)
-def processing_time(src, output, tool, num_threads, debug):
+def processing_time(src, output, tool, storage, num_threads, debug):
     if len(src) == 0:
         raise ValueError("Need at least one input file!")
     tool_map = {t.name: t for t in all_tools}
@@ -302,7 +303,7 @@ def processing_time(src, output, tool, num_threads, debug):
     paths = [pathlib.Path(p) for p in sorted(src)]
     for ts_path in paths:
         ts = tskit.load(ts_path)
-        click.echo(f"{ts_path} n={ts.num_individuals}, m={ts.num_sites}")
+        click.echo(f"{ts_path} n={ts.num_samples // 2}, m={ts.num_sites}")
         sg_path = ts_path.with_suffix(".sgz")
 
         if not sg_path.exists:
@@ -330,6 +331,7 @@ def processing_time(src, output, tool, num_threads, debug):
                     "user_time": result.user,
                     "sys_time": result.system,
                     "wall_time": result.wall,
+                    "storage": storage,
                 }
             )
             df = pd.DataFrame(data).sort_values(["num_samples", "tool"])
@@ -346,7 +348,7 @@ def file_size(src, output, debug):
     data = []
     for ts_path in paths:
         ts = tskit.load(ts_path)
-        click.echo(f"{ts_path} n={ts.num_individuals}, m={ts.num_sites}")
+        click.echo(f"{ts_path} n={ts.num_samples // 2}, m={ts.num_sites}")
         bcf_path = ts_path.with_suffix(".bcf")
         sg_path = ts_path.with_suffix(".sgz")
         sav_path = ts_path.with_suffix(".sav")
