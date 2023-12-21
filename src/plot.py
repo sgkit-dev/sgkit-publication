@@ -143,7 +143,7 @@ def plot_thread_speedup(ax, df, threads):
         # should not be much affected by the number of threads
         ax.semilogx(
             dfs["num_samples"].values,
-            speedup,
+            speedup / threads,
             label=f"{tool}",
             # linestyle=ls,
             marker=".",
@@ -193,7 +193,7 @@ def whole_matrix_compute(time_data, output):
 
     ax2.set_xlabel("Sample size (diploid)")
     ax1.set_ylabel("Time (seconds)")
-    ax2.set_ylabel("Fold-speedup from 1 thread")
+    ax2.set_ylabel("Threads utilisation")
 
     ax1.set_title(f"Afdist CPU time")
     ax2.set_title(f"Speedup with 8 threads")
@@ -214,20 +214,36 @@ def whole_matrix_compute_supplemental(time_data, output):
     df = df[(df.tool == "sgkit") | (df.tool == "savvy")]
 
     # TODO set the width properly based on document
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(4, 6))
+    fig, ((ax1, ax2, ax3), (ax4, ax5, ax6)) = plt.subplots(2, 3, figsize=(12, 6))
+
+    ax2.sharey(ax1)
+    ax3.sharey(ax1)
+    ax5.sharey(ax4)
+    ax6.sharey(ax4)
 
     df_hdd = df[df.storage=="hdd"]
     plot_wall_time(ax1, df_hdd, 8)
-    plot_wall_time(ax1, df_hdd, 8)
-    plot_thread_speedup(ax2, df_hdd, 8)
+    plot_thread_speedup(ax4, df_hdd, 8)
 
+    df_ssd = df[df.storage=="ssd"]
+    plot_wall_time(ax2, df_ssd, 8)
+    plot_thread_speedup(ax5, df_ssd, 8)
+    plot_wall_time(ax3, df_ssd, 16)
+    plot_thread_speedup(ax6, df_ssd, 16)
 
-    ax2.set_xlabel("Sample size (diploid)")
+    # plot_wall_time(ax2, df_ssd, 8)
+    # plot_thread_speedup(ax4, df_ssd, 8)
+
+    ax4.set_xlabel("Sample size (diploid)")
+    ax5.set_xlabel("Sample size (diploid)")
+    ax6.set_xlabel("Sample size (diploid)")
     ax1.set_ylabel("Wall time (seconds)")
-    ax2.set_ylabel("Fold-speedup from 1 thread")
+    ax4.set_ylabel("Speedup factor")
 
-    ax1.set_title(f"Afdist CPU time (8 threads)")
-    ax2.set_title(f"Speedup with 8 threads")
+    ax1.set_title(f"Afdist CPU time (8 threads, HDD)")
+    ax2.set_title(f"Afdist CPU time (8 threads, SSD)")
+    ax3.set_title(f"Afdist CPU time (16 threads, SSD)")
+    # ax4.set_title(f"Speedup vs 1 threads")
     ax1.legend()
 
     plt.tight_layout()
