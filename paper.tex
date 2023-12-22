@@ -1248,49 +1248,166 @@ test~\citep{wigginton2005note} (GWAS)
 
 \section{Discussion}
 
-Things to discuss:
-
+Outline of a possible narrative by paragraph:
 \begin{itemize}
+\item When VCF was introduced as part of the work of the 1000 Genomes
+project the software landscape was a real mess. It has entirely
+succeeded in standardising the output of variant callers, and methods
+have interoperated well for the past decade. As a method of interchange
+following classical file-oriented paradigms it works well enough.
+It is also a good archival format: when compressed with a well established
+method like gzip and combined with the well-documented description of
+the text, we can be sure that files will still be readable decades
+from now.
 
-\item While API based approaches such as htsget~\citep{kelleher2019htsget}
-and more generally federated access to data~\citep{rehm2021ga4gh}
-are an important part of the future of genomics, we must still pay
-attention to how efficient \emph{local} compute is. We need to
-store and exchange data in an efficient and easily accessible
-format. [Could talk about
-how early GA4GH APIs failed because they didn't really consider
-efficiency? Converting VCF to JSON was never going to be efficient?
-Might not be worth getting into]
+\item VCF is holding back large-scale genomics, however, and in particular the
+analysis of population scale genetic variation datasets like UKB and GeL.
+Describe the current state of affairs. Variant datasets are chunked up
+into reasonable sized bits (10s of gigabytes) so that they can be processed
+in parallel. Doing anything with them requires interacting with workflow
+managers. In practise, it is not possible to directly write programs to
+work across multiple large-scale datasets: although the chunks of data
+are given in VCF, orchestrating how the chunks are processed and
+the results combined involves substantial work, involving the workflow
+manager, and the details of how chromosomes are split into chunks.
+Cite examples like the phasing pipelines for UKB from Brownings etc.
 
-\item Users of sgkit will be able to perform data manipulation, analysis, and
-visualization using familiar PyData tools, with only domain-specific methods
-requiring domain-specific APIs. They will also benefit from interactive
-performance for medium-sized data and the ability to scale out to biobank-scale
-data within the same library. 
+\item Distributed computing is the reality, and increasingly datasets
+are being mandatorily stored in public clouds as part of
+Trusted Research Environments. Cloud object stores are the reality
+because it is much cheaper. POSIX file systems are emulated on top of
+this. Benefits of breaking up data into manageable pieces are that
+compute resources can be localised to the data. Compute resources are
+most effectively obtained as short-lived, small VMs that operate
+as part of a large cluster. Large vertically scaled ``pet'' servers
+are much more expensive, and just not feasible for the current
+scale of data. Lots of other architectural
+benefits from the new reality of cloud-based storage.
 
-\item
-Methods developers won’t have to reimplement undifferentiated functionality
-like defining a custom data model, reading from files into that data model, and
-validating data. Instead, they can implement their novel methods against
-sgkit’s data model and instantly gain adjacent functionality and accessibility
-to sgkit’s user community. This is well illustrated by our implementation of
-the state-of-the-art REGENIE algorithm, which requires less than 1000 lines of
-Python code (including documentation) and has comparable performance to the
-original C++. Further, many key methods in statistical genetics operate on GWAS
-summary statistics, and integrating individual level data with external summary
-statistics is an increasingly important strategy which other toolkits have not
-yet formalized.
+\item Classical methods based around Unix pipelines and streaming
+files between processes on a single machine are therefore a
+significant mismatch to the reality of large-scale genetic variation
+datasets. The majority of methods suggested to make working
+with VCF data more efficient are based on these ideas: they all
+create a single large file and regard distribution of work
+in a cluster as extrinsic. Most output VCF as the result of queries,
+which also assumes that the VCF data can be efficiently processed.
+This is a reasonable assumption for thousands of samples, but not
+for larger datasets.
 
-\item sgkit makes it easier for researchers to
-make their whole analysis pipeline available in a reproducible Jupyter
-notebook. Most statistical genetics papers describe the collection of
-command-line utilities used in their methods section, and a select few make a
-workflow connecting the command-line utilities available. Users of sgkit can
-work within a Jupyter notebook without having to call out to command-line
-utilities, making the journey from raw data to scientific findings easier to
-represent in a single notebook.
+\item The key issue here is that VCF is not a \emph{computational}
+format. Contrast VCF with plink, which stores data on disk in a
+form that can be computed on directly. Plink is limited in what
+can be descibed though, does not compress, and is not designed
+to distributed.
+
+\item The large-scale analysis of genetic variation data does not
+need a more efficient file format, which allows files to be downloaded
+somewhat more quickly, and subsets extracted somewhat more efficiently
+as VCF. It needs a standard storage platform that allows data to be
+processed directly without conversion, subsetted efficiently across
+both the variant and sample dimensions, with first-class support
+for all the necessary additional information (GT values etc),
+and that is suited to the realities of today's cloud-based
+storage and processing facilities.
+
+\item We suggest that the model used by Zarr is a good choice for this.
+We have shown that chunks of the genotype matrix compressed with standard
+methods are competitive with highly specialised methods for
+genotype data. In reality most of the storage is for non-genotype
+data anyway, where everyone is essentially doing the same thing.
+Columnar storage allows getting just (e.g.) the variant positions
+without reading everything. Another benefit is that by storing
+fields separately in different cloud objects, they can have
+different permissions. So, users can be given differential access
+to read parts of the dataset, and this is managed directly
+by the cloud storage. Give example.
+
+\item A major strong point of Zarr is its simplicity. All it's doing
+is compressing n-dimensional chunks of numerical data and storing
+them using fixed address keys. This key-value approach means that storage
+is very flexible and implementation is straightforward. There
+are several implementations of the Zarr protocol, and while some of these
+are rudimentary, they could be improved or replaced with relatively
+little effort. Zarr has been successfully used to store petabytes
+of data across different sciences --- genetic variation data is largely
+arrays of numerical data, and not really that different ultimately.
+Zarr is cloud native.
+Zarr is an open specification, built on standard components (contrast
+with Hail).
+
+\item Zarr is not perfect. Discuss limitations around ragged arrays,
+etc. Forthcoming improvements in zarr v3. The whole genotype matrix
+paradigm is challenged by graph genomes as well. While this is
+being worked out, there is still plenty of data to analyse as a
+genotype matrix.
+
+\item Vision. An ecosystem of tools that interoperate
+based on an open, cloud-based format where distribution is naturally
+managed by the stored chunks. Tools can be run on different datasets
+with minimal tuning, not by writing a full layer of orchestration.
+Tools read the data they need, not the entire dataset. Users read
+directly from a single canonical dataset, and do not maintain
+their own filtered copies. We suggest that the Zarr VCF approach
+we have provided would be a good starting point for designing
+such a compute platform.
+
+\item Closing. Sgkit, built on the fundamental idea of storing
+data in a simple, efficient and distributable fashion, would
+hopefully be one element of this compute ecosystem.
+Xarray, Dask and numba provide powerful tools to make users
+more productive, and enable the interactive analysis of large
+scale variation data. We have illustated the current functionality
+through examples here across X-genetics, but there is much
+potential for more. The library is specifically designed to make
+contribution easy, and we welcome people to the open-source
+community.
 
 \end{itemize}
+
+
+%%% OLD TEXT
+% \begin{itemize}
+
+% \item While API based approaches such as htsget~\citep{kelleher2019htsget}
+% and more generally federated access to data~\citep{rehm2021ga4gh}
+% are an important part of the future of genomics, we must still pay
+% attention to how efficient \emph{local} compute is. We need to
+% store and exchange data in an efficient and easily accessible
+% format. [Could talk about
+% how early GA4GH APIs failed because they didn't really consider
+% efficiency? Converting VCF to JSON was never going to be efficient?
+% Might not be worth getting into]
+
+% \item Users of sgkit will be able to perform data manipulation, analysis, and
+% visualization using familiar PyData tools, with only domain-specific methods
+% requiring domain-specific APIs. They will also benefit from interactive
+% performance for medium-sized data and the ability to scale out to biobank-scale
+% data within the same library. 
+
+% \item
+% Methods developers won’t have to reimplement undifferentiated functionality
+% like defining a custom data model, reading from files into that data model, and
+% validating data. Instead, they can implement their novel methods against
+% sgkit’s data model and instantly gain adjacent functionality and accessibility
+% to sgkit’s user community. This is well illustrated by our implementation of
+% the state-of-the-art REGENIE algorithm, which requires less than 1000 lines of
+% Python code (including documentation) and has comparable performance to the
+% original C++. Further, many key methods in statistical genetics operate on GWAS
+% summary statistics, and integrating individual level data with external summary
+% statistics is an increasingly important strategy which other toolkits have not
+% yet formalized.
+
+% \item sgkit makes it easier for researchers to
+% make their whole analysis pipeline available in a reproducible Jupyter
+% notebook. Most statistical genetics papers describe the collection of
+% command-line utilities used in their methods section, and a select few make a
+% workflow connecting the command-line utilities available. Users of sgkit can
+% work within a Jupyter notebook without having to call out to command-line
+% utilities, making the journey from raw data to scientific findings easier to
+% represent in a single notebook.
+
+% \end{itemize}
 
 \section{Methods}
 
