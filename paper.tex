@@ -16,6 +16,10 @@
 \usepackage{graphicx}
 \usepackage{siunitx}
 
+% Additional packages used for code formatting
+\usepackage{minted}
+\usepackage{tcolorbox}
+\usepackage{etoolbox}
 % Local definitions to systematise tool naming
 \newcommand{\sgapi}[1]{\texttt{#1}}
 \newcommand{\toolname}[1]{\texttt{#1}}
@@ -437,39 +441,39 @@ dataset in a single file to a cloud store [details] which stores
 chunks in [a cloud store]. The chunk size is a parameter and
 can be tuned. [bit more detail here].
 
-\begin{figure}
+\begin{figure*}
 \begin{tabular}{cc}
 \includegraphics[width=6cm]{figures/whole-matrix-compute} &
-% \begin{tcolorbox}[width=7cm]
-% \begin{minted}[fontsize=\footnotesize]{python}
-% def sgkit_afdist(ds, num_bins=10):
-%     ds_vs = sgkit.variant_stats(ds).compute()
-%     bins = np.linspace(0, 1.0, num_bins + 1)
-%     bins[-1] += 0.01
-%     af = ds_vs.variant_allele_frequency.values[:, 1]
-%     pRA = 2 * af * (1 - af)
-%     pAA = af * af
-%     hets = ds_vs.variant_n_het.values
-%     homs = ds_vs.variant_n_hom_alt.values
-%     a = np.bincount(
-%         np.digitize(pRA, bins),
-%         weights=hets,
-%         minlength=num_bins + 1)
-%     b = np.bincount(
-%         np.digitize(pAA, bins),
-%         weights=homs,
-%         minlength=num_bins + 1)
-%     count = (a + b).astype(int)
-%     return pd.DataFrame({
-%         "start": bins[:-1],
-%         "stop": bins[1:],
-%         "prob_dist":
-%         count[1:]})
+\begin{tcolorbox}[width=7cm]
+\begin{minted}[fontsize=\footnotesize]{python}
+def sgkit_afdist(ds, num_bins=10):
+    ds_vs = sgkit.variant_stats(ds).compute()
+    bins = np.linspace(0, 1.0, num_bins + 1)
+    bins[-1] += 0.01
+    af = ds_vs.variant_allele_frequency.values[:, 1]
+    pRA = 2 * af * (1 - af)
+    pAA = af * af
+    hets = ds_vs.variant_n_het.values
+    homs = ds_vs.variant_n_hom_alt.values
+    a = np.bincount(
+        np.digitize(pRA, bins),
+        weights=hets,
+        minlength=num_bins + 1)
+    b = np.bincount(
+        np.digitize(pAA, bins),
+        weights=homs,
+        minlength=num_bins + 1)
+    count = (a + b).astype(int)
+    return pd.DataFrame({
+        "start": bins[:-1],
+        "stop": bins[1:],
+        "prob_dist":
+        count[1:]})
 
-% ds = sgkit.load_dataset(ds_path)
-% df = sgkit_afdist(ds)
-% \end{minted}
-% \end{tcolorbox}
+ds = sgkit.load_dataset(ds_path)
+df = sgkit_afdist(ds)
+\end{minted}
+\end{tcolorbox}
 \end{tabular}
 \caption{Whole-matrix compute performance with increasing sample size.
 (A) Total CPU time required to run \texttt{bcftools +afdist}
@@ -481,7 +485,7 @@ benchmarks. See Figure~\ref{fig-whole-matrix-compute-supplemental} for
 more detailed comparisons with different numbers of threads, and comparing
 the effects of HDD vs SSD storage.
 \label{fig-whole-matrix-compute}}
-\end{figure}
+\end{figure*}
 
 The scale of modern genomic datasets also means that calculations must
 be parallelised. This is illustrated in Fig.~\ref{fig-whole-matrix-compute}B,
@@ -563,43 +567,43 @@ the scalability and efficiency of \toolname{sgkit} as an analysis
 platform.
 
 
-\begin{figure}
+\begin{figure*}
 \begin{tabular}{cc}
 \includegraphics[width=6cm]{figures/subset-matrix-compute} &
-% \begin{tcolorbox}[width=7cm]
-% \begin{minted}[fontsize=\footnotesize]{python}
-% # TODO not sure how best to illustrate this. Trying out various
-% # options
+\begin{tcolorbox}[width=7cm]
+\begin{minted}[fontsize=\footnotesize]{python}
+# TODO not sure how best to illustrate this. Trying out various
+# options
 
-% ds = sgkit.load_dataset(ds_path)
-% dss = ds.isel(
-%     variants=slice(...),
-%     samples=(slice(...)))
-% df = sgkit_afdist(dss)
+ds = sgkit.load_dataset(ds_path)
+dss = ds.isel(
+    variants=slice(...),
+    samples=(slice(...)))
+df = sgkit_afdist(dss)
 
-% # bcftools
-% bcftools view PATH -S ... -r...
-% | bcftools +fill-tags | bcftools +af-dist
+# bcftools
+bcftools view PATH -S ... -r...
+| bcftools +fill-tags | bcftools +af-dist
 
-% # genozip
-% genocat PATH -r ... -s ...
-% | bcftools +fill-tags | bcftools +af-dist
+# genozip
+genocat PATH -r ... -s ...
+| bcftools +fill-tags | bcftools +af-dist
 
-% # Complex query
-% df = pd.read_csv("sample_info.csv",
-%     sep="\t").set_index("sample_id")
-% dss = ds.isel(
-%     samples=df.decade[ds.sample_id.values] >= 1950)
-% sgkit_afdist(dss)
+# Complex query
+df = pd.read_csv("sample_info.csv",
+    sep="\t").set_index("sample_id")
+dss = ds.isel(
+    samples=df.decade[ds.sample_id.values] >= 1950)
+sgkit_afdist(dss)
 
-% # Corresponding shell
-% tail -n+2 sample_info.csv | awk '$2 >= 1950'
-%     | cut -f1 > samples.txt
-% bcftools view PATH -s samples.txt
-%     | bcftools +fill-tags | bcftools +af-dist
+# Corresponding shell
+tail -n+2 sample_info.csv | awk '$2 >= 1950'
+    | cut -f1 > samples.txt
+bcftools view PATH -s samples.txt
+    | bcftools +fill-tags | bcftools +af-dist
 
-% \end{minted}
-% \end{tcolorbox}
+\end{minted}
+\end{tcolorbox}
 \end{tabular}
 \caption{Whole-matrix compute performance with increasing sample size.
 (A) Total CPU time required to run the afdist calculation for
@@ -610,7 +614,7 @@ sample IDs, and the command line was therefore too long for the shell
 to execute.
 (C) A simplified version of the source code used for these benchmarks.
 \label{fig-subset-matrix-compute}}
-\end{figure}
+\end{figure*}
 
 
 \subsection{Sgkit design principles}
@@ -1500,7 +1504,7 @@ it directly, only VCF (supports BCF by pipeing through bcftools).
 
 \section*{Supplementary Material}
 
-\begin{figure}[ht]
+\begin{figure*}[ht]
 	\begin{center}
 		\includegraphics[width=\textwidth]{figures/whole-matrix-compute-supplemental}
 	\end{center}
@@ -1512,7 +1516,7 @@ speedup obtained from threads as a fraction of optimum speedup (bottom row).
 [TODO more detail and link to fig 1. Also add the times for bcftools and
 genozip in col 1?]
 }
-\end{figure}
+\end{figure*}
 
 
 \end{document}
