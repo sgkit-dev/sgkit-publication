@@ -53,7 +53,7 @@
 %%% Should only be set by an editor
 \jvolume{00}
 \jnumber{0}
-\jyear{2023}
+\jyear{2024}
 
 \begin{document}
 
@@ -104,6 +104,7 @@ Keyword1; keyword 2; keyword 3 (Three to ten keywords representing the main cont
 \section{Background}
 % This current phrasing would annoy people, just spewing this
 % out to roughly say what I think is relevant, we can refine later.
+
 The study of genetics is currently transforming into a true big-data science.
 Since the Human Genome Project, genomics has required working with
 signicant volumes of data and the specialised methods
@@ -307,66 +308,12 @@ joining tree using scipy (which we emphasise is a terrible
 idea, but still). We showcase sgkit's support for heterogenous
 computing by getting an X-fold speedup on a GPU.
 
-\section{Older text}
 
-\subsection{Chunked storage and distributed computation}
-How we store genetic data fundamentally affects how computation
-can be structured, and ultimately the scalability of the calculations
-we wish to perform. Classically, genetic variation data is stored via one
-of two strategies. The first strategy, epitomised by
-VCF~\citep{danecek2011variant} encodes all the data for a given
-variant in a record, and then stores these records consecutively on file
-(optionally compressed). This record-oriented approach maps well to the
-powerful Unix pipelines abstraction and
-has proven to be very successful.
-The second classical strategy, epitomised
-by the \texttt{plink} BED format~\citep{purcell2007plink}, is to
-store genotype data in a structured binary format that can be
-accessed directly. This memory-map approach tends to
-be much faster to access, but leads to larger files and is more
-limited in what can be represented. There are advantages and
-disadvantages to both approaches, but one problem fundamentally
-limits their utility for modern datasets: neither is well suited to
-scaling-out across multiple machines.
-
-[Probably need a paragraph here on what we've done classically
-by splitting by variant. This was the dominant dimension, so that
-worked fine. Now we need to also think about access-by-sample]
-
-Given the scale of modern datasets, the ability to perform
-calculations in parallel on multiple CPU cores
-is now a basic prerequisite, and
-running concurrently on multiple computers in a cluster
-is increasingly becoming necessary. [For interactive analysis? People have
-been doing concurrent computing with HPC clusters forever.]
-Record-oriented variant storage such as VCF is not suitable
-for  distributed computing because although it is relatively
-straightforward to break workloads up by variant, we cannot efficiently
-split by sample (see the section on Columnar Data below for details).
-Storing data in a memory-mapped manner, where the genotypes
-for each variant are written consecutive consecutively to a file,
-suffers from the same problem. Although it is useful to conceptualise
-the genotype matrix as two-dimensional, it is important to remember
-that computer memory and file storage is ultimately one-dimensonal.
-For example, plink's memory-mapped data layout linearises the 2D
-genotype matrix by writing [TODO check] $n$ bytes representing
-the genotypes for all samples at a variant position consecutively.
-Because the genotypes for a given variant index can be found
-in contiguous blocks at easily computable offsets from
-this initial location in memory,
-accessing the genotypes for a given variant is very efficient.
-However, accessing the genotypes for a given sample at every
-variant position is much less efficient because each of the $m$ bytes we
-must read are $n$ bytes apart in the file.
-In the distributed context, this often means
-that each compute node  in a
-cluster must effectively read the entire file in order to obtain the
-data for a subset of samples. In practise, this means that calculations
-are limited by I/0 bandwidth.
+\subsection{Storing genetic variation data}
 
 \begin{figure}
-\begin{tabular}{c}
-% The source for this figure is a google drawing
+    \begin{tabular}{c}
+    % The source for this figure is a google drawing
 % Currently using
 % https://docs.google.com/drawings/d/1NheB6LCvvkB4C0nAoSFwoYVZ3mtOPaseGmg_mZvcQ8I
 % See https://github.com/pystatgen/sgkit-publication/issues/21 for
@@ -384,62 +331,39 @@ based on simulated data (see text for details).
 \label{fig-data-storage}}
 \end{figure}
 
-A simple and elegant solution to providing efficient access to such
-large matrices across multiple dimensions is to store rectangular
-\emph{chunks} rather than entire rows or columns. This is illustrated
-in Fig~\ref{fig-data-storage}, where we show the basic approach
-used by sgkit. By storing data in these regular chunks, we
-can efficiently access data for both specific variants \emph{and}
-samples.
+High level discussion of
+strategies used to store genotype matrix and accompanying metadata.
+Emphasis on access by variant, not sample. Introduce Zarr, and
+refer to Fig~\ref{fig-data-storage}A to explain columnar storage,
+and Fig~\ref{fig-data-storage}B to show that is competitive
+with highly specialised approaches.
+Note that the FC simulated dataset is probably a best-case
+scenario for methods specialised to patterns in the genotype matrix.
+Discuss storing additional data, and advantages of the
+columnar approach (refs to genomics tools that do the same).
 
-Additionally, we can compress the individual chunks [more details].
+\subsection{Computing on the genotype matrix}
 
-This general strategy for storing multidimensional numerical data
-has been in use for many years~\citep{folk2011overview}
+Compressing data isn't ultimately the point - we want to use it.
+We discuss the problem of running computations on the entire
+genotype matrix, and how different formats limit what can be done.
+We illustrate the discussion by the afdist operation from
+the bcftools plugins package. This is perhaps a contrived example, but
+we chose it because it requires examining the entire genotype matrix
+and there is an efficient implementation available in bcftools.
+It is also a good example because the standard approach of
+divvying up the genome into chunks via HPC schedulers or workflow
+managers is quite tricky.
+We discuss the software development aspect, and how we developed
+the afdist-savvy program. We discuss the inherent limitations
+of the decode-to-vcf strategy, and how this inevitably
+leads to bottlenecks. We discuss parallelism, and why
+bcftools and genozip can make limited use of available cores.
+Also that single-machine parallelism is inevitably constrained
+by IO (which is why savvy's thread utilisation drops off).
+Figure: \ref{fig-whole-matrix-compute}. Also
+supplementary figure ~\ref{fig-whole-matrix-compute-supplemental}.
 
-This maps well to distributed computing because Zarr provides a
-very flexible approach to storing the chunks. By using a native cloud store
-for these chunks, compute nodes can directly access the chunks that
-are needed, and not read irrelevant data.
-[TODO flesh out and more stuff.]
-
-\subsection{Scaling up interactive analysis}
-The storage and analysis of datasets consisting of hundreds of
-thousands of genomes presents major challenges.
-Fig.~\ref{fig-data-storage} shows the performance of \toolname{sgkit}
-in terms of storage space and computation time  on a simple benchmark (see
-below for details) with increasing
-numbers of samples, contrasting with the standard BCF file format
-and \toolname{bcftools} utility.
-The dataset used is a subset of the
-ultra-realistic simulations of 1.4 million French-Canadians
-provided by~\citet{anderson2023genes}, which is freely avilable
-and has been shown to
-accurately reflect fine-scaled demographic structure.
-Although
-simulations can never capture the full richness of real data,
-this resource certainly reflects the patterns of allele frequency
-and correlation structure that we would expect in large-scale
-human studies, and provides a useful and reproducable benchmark.
-Note that as we increase the sample size, the number of variant
-sites also increases [following basic popgen principles?].
-
-The scale of present-day genomic data means that compact
-storage is of paramount importance, and reductions in storage space
-can make a significant difference in overall costs.
-Fig.~\ref{fig-data-storage}A shows that the
-compressed-chunked-array Zarr format used by \toolname{sgkit} results
-in significantly smaller file-sizes than BCF (encoded using
-\texttt{bcftools view -O b}; we used \toolname{bcftools}
-version 1.18 throughout). At the extreme, when we have 1M
-samples, we require XGB for the BCF file and a total of YGB
-for the \toolname{sgkit} version. Note that under the default
-directory based Zarr store this results in XX files of around
-y KB each to store the chunks. Different Zarr storage engines
-can be used, varying from a ZipFile which keeps the entire
-dataset in a single file to a cloud store [details] which stores
-chunks in [a cloud store]. The chunk size is a parameter and
-can be tuned. [bit more detail here].
 
 \begin{figure*}
 \begin{tabular}{cc}
@@ -487,85 +411,14 @@ the effects of HDD vs SSD storage.
 \label{fig-whole-matrix-compute}}
 \end{figure*}
 
-The scale of modern genomic datasets also means that calculations must
-be parallelised. This is illustrated in Fig.~\ref{fig-whole-matrix-compute}B,
-where we compare the performance of a simple calculation requiring
-the examination of all genotypes using \toolname{bcftools}
-and \texttt{sgkit}. Interactive analysis is only possible through
-parallelisation, as optimised single-threaded code
-is simply not fast enough.
-Although it is relatively straightforward to split calculations across
-the genome using tools like \toolname{bcftools}, the process
-is quite manual, and often involves working with HPC schedulers
-or workflow managers [this is very rough, just seeing where it goes].
-Splitting the workload \emph{by sample} however, is much more
-difficult. Parallelisation by variant and sample is an inherent
-part of \texttt{sgkit}'s design---the variant matrix is chunked
-in two dimensions, and Dask transparently maps computations to these
-chunks.
-Fig.~\ref{fig-whole-matrix-compute}B shows how \texttt{sgkit} scales
-on a single server, and how computation time decreases as we use
-more threads. In contrast, using threads with
-\toolname{bcftools} (via the XXX option) makes almost no difference
-because computational model is inherently sequential, and additional threads
-are only used to facilitate decompression.
-As we see in section XXX,
-a major advantage of \texttt{sgkit} is that it not only supports
-scaling \emph{up} within a server, but also scaling \emph{out}
-across multiple servers.
-
-The ability to
-run pre-defined analyses interactively on very large datasets by
-transparently distributing across a cluster is a major boost to
-researcher productivity. The ability to define one's \emph{own}
-analyses using familiar Python data-science tools and libraries,
-and to similarly distribute across a cluster (with single-threaded
-speed close to native compiled code) is a game-changer [say better].
-Fig.~\ref{fig-whole-matrix-compute}C shows the code used in the benchmark
-for \toolname{sgkit} in Fig.~\ref{fig-whole-matrix-compute}B. The heavy
-computation here is done in the \texttt{variant\_stats(ds)} function,
-which computes a set of variables summarising each of the variants
-by examining the entire variant matrix.
-These variables are mostly one-dimensional, and can thefore
-be processed `in-core' using numpy methods very effectively.
-For example, we \texttt{variant\_n\_het} the number of heterozygous samples
-in Fig.~\ref{fig-whole-matrix-compute}C. For $n=10^6$ we have X million
-variants, and the overall size of the data is Y MiB which
-comfortably fits in memory. Thus, the
-\texttt{get\_prob\_dist} function shown here reproduces the functionality
-of the \toolname{bcftools +afdist} plugin, which must be compiled and
-requires detailed knowledge of \toolname{htslib} APIs, using standard
-Python data science tools, and with similar performance.
-
-Reducing the variant matrix to summaries that are separately stored
-is the standard practise when using VCF/BCF files, for precisely the
-reason of avoiding the need to examine the entire genotype matrix.
-These are most often stored as ``INFO`` fields.
-Indeed, \toolname{bcftools +afdist} requires that the \texttt{AC}
-INFO field is present (but does not raise an error
-if it doesn't). Because of the row-based storage approach of
-VCF/BCF, adding any new fields to a file means reading in the entire
-file, and writing out a full copy. For our $n=10^6$ samples example,
-computing \texttt{AC} value required XX hours.
-In contrast, the columnar storage approach (see section XXX) used
-in \toolname{sgkit} means that we can \emph{update} an existing
-dataset with this derived information, without altering the existing
-on-disk information.
-Computing the
-\texttt{variant\_allele\_counts} variable using
-40 threads  required XX minutes, and updating the existing dataset required
-0.X seconds.
-
-The shortcomings of VCF as a storage format and computational
-substrate are well known, and as we discuss in Section XXX,
-storing genetic variation data is a complex issue
-and the subject of substantial ongoing research. The point of this
-section is not to establish that the approach taken by \toolname{sgkit}
-is state-of-the-art, but to contrast the approach we have taken
-with VCF (as the standard storage format) and to demonstrate
-the scalability and efficiency of \toolname{sgkit} as an analysis
-platform.
-
+\subsection{Subsetting the genotype matrix}
+Existing work overwhelmingly emphasises accessibility by variant.
+We demonstrate that sgkit/zarr is good for getting subsets
+in terms of both variants and samples via afdist on various subsets.
+Discuss why storing AF values for crude population groupings is
+intrinsically bad, and that it should be easy to do calculations
+on aribitrary subsets. Also participants regularly drop-out of
+large studies like UKB - do you update the AF values each time?
 
 \begin{figure*}
 \begin{tabular}{cc}
@@ -605,7 +458,7 @@ bcftools view PATH -s samples.txt
 \end{minted}
 \end{tcolorbox}
 \end{tabular}
-\caption{Whole-matrix compute performance with increasing sample size.
+\caption{Compute performance on subsets of the matrix.
 (A) Total CPU time required to run the afdist calculation for
 a subset of 10 samples and 10000 variants from the middle of the matrix.
 (B) Same for n/2 samples. Genozip did not run in this case for
@@ -617,56 +470,36 @@ to execute.
 \end{figure*}
 
 
-\subsection{Sgkit design principles}
+\subsection{Distributed computation}
+Why do we need distributed compute? Summary of current
+approaches (chunk up along the genome using HPC or workflow
+managers). Advantages of true distributed compute, MapReduce
+etc. Summary of earlier efforts like ADAM.
+Discuss Hail. It's awesome, has enabled current
+generation of mega-scale projects. Drawbacks are the
+architecture has emphasised performance etc over adaptability
+and simplicity. File format is undocumented, etc.
+Discuss why the sgkit architecture is suited to distributed
+computation. Discuss Zarr's use in cloud stores, and existing
+deployments. Discuss Dask.
+We do not attempt a head-to-head performance comparison with
+Hail here, but defer to Liangde's thesis~\citep{li2022efficient}
+with brief summary.
+Forward ref to following sections on applications to demonstate
+sgkit in a distributed context.
 
-Openness is a core organising principle of sgkit, both in terms of
-development processes and code licensing, and also with respect
-to usability. By following the general philosophy of array-oriented
-computing, the functionality in sgkit is organised around the
-key concept of a ``dataset`` which encapsulates a set of
-related ``variables''. The implementation aims to be as agnostic
-as possible as to the underlying implementation of these arrays,
-which can be stored in-memory as NumPy arrays, in chunked
-compressed on-disk storage as Zarr arrays, or ...
-
-% Perhaps this should be mentioned in the QuantGen section?
-The data layout used here is compatible with the ChromaX
-breeding program simulator~\citep{younis2023chromax}, which
-is leveraging other aspects of the PyData ecosystem to
-fully utilise modern parallel hardware.
-
-
-[In later sections we discuss enabling technologies in detail,
-here we talk about how we use them from a high-level, and layout
-the overall design philosophy. This isn't documentation, rather
-it's the forum where we lay out explicitly early design choices
-and their rationale.]
-
-VCF conversion is handled using
-\toolname{cyvcf2}~\citep{pedersen2017cyvcf2}.
-[TODO any citations for these?]
-BGEN using \toolname{cbgen}.
-Plink support using \toolname{bed\_reader}
-
-[Text from proposal]
-
-The rapid evolution of supporting projects in the PyData ecosystem, including Dask for
-distributed processing, Xarray for coordinated operations on groups of labeled
-n-dimensional arrays, Zarr for n-dimensional array storage on cloud object
-stores, and Numba for hardware acceleration. We’ve designed sgkit from the
-ground up to tightly integrate with these libraries so that we can benefit from
-the many improvements being made upstream, making the PyData ecosystem
-accessible to statistical geneticists.
-
-We've also defined a Zarr representation for efficient storage of this data.
-We’ve designed an Xarray dataset-based data model which can be populated from
-any of the file formats above, and against which library methods are
-implemented. These methods include variant and sample quality control,
-population structure analysis, genome-wide selection scans, and genome-wide
-association analyses, including a novel implementation of the recently
-developed and state-of-the-art REGENIE algorithm.
-
-
+\subsection{Quality control of large datasets}
+Outline the importance of QC, and existing approaches.
+Summarise sgkit's general QC capabilities.
+We demonstrate sgkit on quality control operations on a large
+real dataset. We convert large messy VCF with lots of additional
+fields. Quote file size numbers. We do some QC operations on
+the dataset, using a good size distributed cluster, using
+some of the additional fields. Quote times. Discuss Xarray
+here, and possibly illustrate the labelled dimensioned arrays
+here via a figure (perhaps a screenshot/pdf conversion of
+a Jupyter notebook rendering of the big messy dataset,
+showing the various fields).
 
 \subsection{Statistical Genetics}
 Statistical genetics is largely concerned with disease associations
@@ -788,7 +621,6 @@ for tree inference and secondly, before we infer trees we must
 first perform extensive quality control of the raw data, necessarily
 in variant-matrix form.
 
-\subsubsection{API overview}
 
 Sgkit provides a number of methods for computing statistics in population
 genetics. All methods work on an Xarray dataset that has a number of well-known
@@ -818,8 +650,6 @@ The methods for multi-way statistics include \sgapi{divergence} and
 computing mean genetic divergence and $F_{ST}$ (respectively) between pairs of
 cohorts, and \sgapi{pbs} for computing the population branching statistic between
 cohort triples.
-
-\subsubsection{Example}
 
 We converted phased Ag1000G hypotype data in Zarr format
 %[@https://www.malariagen.net/data/ag1000g-phase-2-ar1]
@@ -892,8 +722,502 @@ focus on supporting autopolyploids.
 
 
 
+\section{Discussion}
 
-\subsection{Enabling technologies}
+Outline of a possible narrative by paragraph:
+\begin{itemize}
+\item When VCF was introduced as part of the work of the 1000 Genomes
+project the software landscape was a real mess. It has entirely
+succeeded in standardising the output of variant callers, and methods
+have interoperated well for the past decade. As a method of interchange
+following classical file-oriented paradigms it works well enough.
+It is also a good archival format: when compressed with a well established
+method like gzip and combined with the well-documented description of
+the text, we can be sure that files will still be readable decades
+from now.
+
+\item VCF is holding back large-scale genomics, however, and in particular the
+analysis of population scale genetic variation datasets like UKB and GeL.
+Describe the current state of affairs. Variant datasets are chunked up
+into reasonable sized bits (10s of gigabytes) so that they can be processed
+in parallel. Doing anything with them requires interacting with workflow
+managers. In practise, it is not possible to directly write programs to
+work across multiple large-scale datasets: although the chunks of data
+are given in VCF, orchestrating how the chunks are processed and
+the results combined involves substantial work, involving the workflow
+manager, and the details of how chromosomes are split into chunks.
+Cite examples like the phasing pipelines for UKB from Brownings etc.
+
+\item Distributed computing is the reality, and increasingly datasets
+are being mandatorily stored in public clouds as part of
+Trusted Research Environments. Cloud object stores are the reality
+because it is much cheaper. POSIX file systems are emulated on top of
+this. Benefits of breaking up data into manageable pieces are that
+compute resources can be localised to the data. Compute resources are
+most effectively obtained as short-lived, small VMs that operate
+as part of a large cluster. Large vertically scaled ``pet'' servers
+are much more expensive, and just not feasible for the current
+scale of data. Lots of other architectural
+benefits from the new reality of cloud-based storage.
+
+\item Classical methods based around Unix pipelines and streaming
+files between processes on a single machine are therefore a
+significant mismatch to the reality of large-scale genetic variation
+datasets. The majority of methods suggested to make working
+with VCF data more efficient are based on these ideas: they all
+create a single large file and regard distribution of work
+in a cluster as extrinsic. Most output VCF as the result of queries,
+which also assumes that the VCF data can be efficiently processed.
+This is a reasonable assumption for thousands of samples, but not
+for larger datasets.
+
+\item The key issue here is that VCF is not a \emph{computational}
+format. Contrast VCF with plink, which stores data on disk in a
+form that can be computed on directly. Plink is limited in what
+can be descibed though, does not compress, and is not designed
+to distributed.
+
+\item The large-scale analysis of genetic variation data does not
+need a more efficient file format, which allows files to be downloaded
+somewhat more quickly, and subsets extracted somewhat more efficiently
+as VCF. It needs a standard storage platform that allows data to be
+processed directly without conversion, subsetted efficiently across
+both the variant and sample dimensions, with first-class support
+for all the necessary additional information (GT values etc),
+and that is suited to the realities of today's cloud-based
+storage and processing facilities.
+
+\item We suggest that the model used by Zarr is a good choice for this.
+We have shown that chunks of the genotype matrix compressed with standard
+methods are competitive with highly specialised methods for
+genotype data. In reality most of the storage is for non-genotype
+data anyway, where everyone is essentially doing the same thing.
+Columnar storage allows getting just (e.g.) the variant positions
+without reading everything. Another benefit is that by storing
+fields separately in different cloud objects, they can have
+different permissions. So, users can be given differential access
+to read parts of the dataset, and this is managed directly
+by the cloud storage. Give example.
+
+\item A major strong point of Zarr is its simplicity. All it's doing
+is compressing n-dimensional chunks of numerical data and storing
+them using fixed address keys. This key-value approach means that storage
+is very flexible and implementation is straightforward. There
+are several implementations of the Zarr protocol, and while some of these
+are rudimentary, they could be improved or replaced with relatively
+little effort. Zarr has been successfully used to store petabytes
+of data across different sciences --- genetic variation data is largely
+arrays of numerical data, and not really that different ultimately.
+Zarr is cloud native.
+Zarr is an open specification, built on standard components (contrast
+with Hail).
+
+\item Zarr is not perfect. Discuss limitations around ragged arrays,
+etc. Forthcoming improvements in zarr v3. The whole genotype matrix
+paradigm is challenged by graph genomes as well. While this is
+being worked out, there is still plenty of data to analyse as a
+genotype matrix.
+
+\item Vision. An ecosystem of tools that interoperate
+based on an open, cloud-based format where distribution is naturally
+managed by the stored chunks. Tools can be run on different datasets
+with minimal tuning, not by writing a full layer of orchestration.
+Tools read the data they need, not the entire dataset. Users read
+directly from a single canonical dataset, and do not maintain
+their own filtered copies. We suggest that the Zarr VCF approach
+we have provided would be a good starting point for designing
+such a compute platform.
+
+\item TODO several missing paragraphs here discussing the
+benefits of the other layers of the stack.
+
+\item Closing. Sgkit, built on the fundamental idea of storing
+data in a simple, efficient and distributable fashion, would
+hopefully be one element of this compute ecosystem.
+Xarray, Dask and numba provide powerful tools to make users
+more productive, and enable the interactive analysis of large
+scale variation data. We have illustated the current functionality
+through examples here across X-genetics, but there is much
+potential for more. The library is specifically designed to make
+contribution easy, and we welcome people to the open-source
+community.
+
+\end{itemize}
+
+
+%%% OLD TEXT
+% \begin{itemize}
+
+% \item While API based approaches such as htsget~\citep{kelleher2019htsget}
+% and more generally federated access to data~\citep{rehm2021ga4gh}
+% are an important part of the future of genomics, we must still pay
+% attention to how efficient \emph{local} compute is. We need to
+% store and exchange data in an efficient and easily accessible
+% format. [Could talk about
+% how early GA4GH APIs failed because they didn't really consider
+% efficiency? Converting VCF to JSON was never going to be efficient?
+% Might not be worth getting into]
+
+% \item Users of sgkit will be able to perform data manipulation, analysis, and
+% visualization using familiar PyData tools, with only domain-specific methods
+% requiring domain-specific APIs. They will also benefit from interactive
+% performance for medium-sized data and the ability to scale out to biobank-scale
+% data within the same library. 
+
+% \item
+% Methods developers won’t have to reimplement undifferentiated functionality
+% like defining a custom data model, reading from files into that data model, and
+% validating data. Instead, they can implement their novel methods against
+% sgkit’s data model and instantly gain adjacent functionality and accessibility
+% to sgkit’s user community. This is well illustrated by our implementation of
+% the state-of-the-art REGENIE algorithm, which requires less than 1000 lines of
+% Python code (including documentation) and has comparable performance to the
+% original C++. Further, many key methods in statistical genetics operate on GWAS
+% summary statistics, and integrating individual level data with external summary
+% statistics is an increasingly important strategy which other toolkits have not
+% yet formalized.
+
+% \item sgkit makes it easier for researchers to
+% make their whole analysis pipeline available in a reproducible Jupyter
+% notebook. Most statistical genetics papers describe the collection of
+% command-line utilities used in their methods section, and a select few make a
+% workflow connecting the command-line utilities available. Users of sgkit can
+% work within a Jupyter notebook without having to call out to command-line
+% utilities, making the journey from raw data to scientific findings easier to
+% represent in a single notebook.
+
+% \end{itemize}
+
+\section{Methods}
+
+\subsection{Benchmarking}
+Full details of the benchmarking done in
+Figure~\ref{fig-data-storage} and
+Figure~\ref{fig-whole-matrix-compute}.
+Quick notes:
+
+\begin{itemize}
+\item Dataset is based on subsets of French-Canadian sims. We simplify
+for increasingly large subsets, keeping only variant sites. We then
+convert to VCF and encode to BCF using
+\texttt{tskit vcf | bcftools view -O b}.
+\item We used a chunk size of XX for sgkit, after some experimentation.
+This gave n files of around x MB each for the ``call\_genotypes`` array.
+We used the defaults for savvy and genozip.
+\item For the afdist CPU time we measure the sum of the total user and
+system times required to execute the full command, as reported by GNU
+time. Each tool was instructed to use one thread, where the options
+were provided. For genozip, the time required to compute
+\texttt{genocat file.genozip | bcftools +af-dist}. Because commands
+in the pipeline execute concurrently on mutiple cores, the total CPU time is
+greater than the elapsed time.
+\item For the threading speedup plot, we report the time required to compute
+afdist with 8 threads relative to 1 thread (a speedup of 8 is therefore
+the maximum). For savvy, our C++ implementation of afdist calculates
+on 8 chunks of genome, and aggegates once they are completed.
+Bcftools has a ``--threads`` option, but it only applies to decoding.
+\item Where possible in pipelines we use uncompressed BCF
+ output \texttt{-Ou} to make processing more efficient (skip printf
+and parsing costs, which are substantial).
+\item We do not use BCF output in genozip because it doesn't support
+it directly, only VCF (supports BCF by pipeing through bcftools).
+\end{itemize}
+
+\section{Availability of source code and requirements}
+
+\section{Data availability}
+
+\section{Declarations}
+
+\subsection{List of abbreviations}
+
+\subsection{Competing Interests}
+
+\subsection{Funding}
+
+\subsection{Author's Contributions}
+
+\section{Acknowledgements}
+
+
+\bibliography{paper}
+
+
+\clearpage
+\renewcommand\thefigure{S\arabic{figure}}
+\setcounter{figure}{0}
+\renewcommand\thetable{S\arabic{table}}
+\setcounter{table}{0}
+
+\section*{Supplementary Material}
+
+\begin{figure*}[ht]
+	\begin{center}
+		\includegraphics[width=\textwidth]{figures/whole-matrix-compute-supplemental}
+	\end{center}
+	\caption{\label{fig-whole-matrix-compute-supplemental}
+    Limitations of vertical scaling on whole-matrix afdist. The elapsed
+wall-clock time required to compute afdist on the whole genotype matrix using
+different numbers of threads and storage backends (top row), and the relative
+speedup obtained from threads as a fraction of optimum speedup (bottom row).
+[TODO more detail and link to fig 1. Also add the times for bcftools and
+genozip in col 1?]
+}
+\end{figure*}
+
+
+\clearpage
+\section*{Text graveyard}
+
+Here's a bunch of text that contains bits that might be useful and readapted.
+
+
+\subsection{Chunked storage and distributed computation}
+How we store genetic data fundamentally affects how computation
+can be structured, and ultimately the scalability of the calculations
+we wish to perform. Classically, genetic variation data is stored via one
+of two strategies. The first strategy, epitomised by
+VCF~\citep{danecek2011variant} encodes all the data for a given
+variant in a record, and then stores these records consecutively on file
+(optionally compressed). This record-oriented approach maps well to the
+powerful Unix pipelines abstraction and
+has proven to be very successful.
+The second classical strategy, epitomised
+by the \texttt{plink} BED format~\citep{purcell2007plink}, is to
+store genotype data in a structured binary format that can be
+accessed directly. This memory-map approach tends to
+be much faster to access, but leads to larger files and is more
+limited in what can be represented. There are advantages and
+disadvantages to both approaches, but one problem fundamentally
+limits their utility for modern datasets: neither is well suited to
+scaling-out across multiple machines.
+
+[Probably need a paragraph here on what we've done classically
+by splitting by variant. This was the dominant dimension, so that
+worked fine. Now we need to also think about access-by-sample]
+
+Given the scale of modern datasets, the ability to perform
+calculations in parallel on multiple CPU cores
+is now a basic prerequisite, and
+running concurrently on multiple computers in a cluster
+is increasingly becoming necessary. [For interactive analysis? People have
+been doing concurrent computing with HPC clusters forever.]
+Record-oriented variant storage such as VCF is not suitable
+for  distributed computing because although it is relatively
+straightforward to break workloads up by variant, we cannot efficiently
+split by sample (see the section on Columnar Data below for details).
+Storing data in a memory-mapped manner, where the genotypes
+for each variant are written consecutive consecutively to a file,
+suffers from the same problem. Although it is useful to conceptualise
+the genotype matrix as two-dimensional, it is important to remember
+that computer memory and file storage is ultimately one-dimensonal.
+For example, plink's memory-mapped data layout linearises the 2D
+genotype matrix by writing [TODO check] $n$ bytes representing
+the genotypes for all samples at a variant position consecutively.
+Because the genotypes for a given variant index can be found
+in contiguous blocks at easily computable offsets from
+this initial location in memory,
+accessing the genotypes for a given variant is very efficient.
+However, accessing the genotypes for a given sample at every
+variant position is much less efficient because each of the $m$ bytes we
+must read are $n$ bytes apart in the file.
+In the distributed context, this often means
+that each compute node  in a
+cluster must effectively read the entire file in order to obtain the
+data for a subset of samples. In practise, this means that calculations
+are limited by I/0 bandwidth.
+
+
+A simple and elegant solution to providing efficient access to such
+large matrices across multiple dimensions is to store rectangular
+\emph{chunks} rather than entire rows or columns. This is illustrated
+in Fig~\ref{fig-data-storage}, where we show the basic approach
+used by sgkit. By storing data in these regular chunks, we
+can efficiently access data for both specific variants \emph{and}
+samples.
+
+Additionally, we can compress the individual chunks [more details].
+
+This general strategy for storing multidimensional numerical data
+has been in use for many years~\citep{folk2011overview}
+
+This maps well to distributed computing because Zarr provides a
+very flexible approach to storing the chunks. By using a native cloud store
+for these chunks, compute nodes can directly access the chunks that
+are needed, and not read irrelevant data.
+[TODO flesh out and more stuff.]
+
+\subsection{Scaling up interactive analysis}
+The storage and analysis of datasets consisting of hundreds of
+thousands of genomes presents major challenges.
+Fig.~\ref{fig-data-storage} shows the performance of \toolname{sgkit}
+in terms of storage space and computation time  on a simple benchmark (see
+below for details) with increasing
+numbers of samples, contrasting with the standard BCF file format
+and \toolname{bcftools} utility.
+The dataset used is a subset of the
+ultra-realistic simulations of 1.4 million French-Canadians
+provided by~\citet{anderson2023genes}, which is freely avilable
+and has been shown to
+accurately reflect fine-scaled demographic structure.
+Although
+simulations can never capture the full richness of real data,
+this resource certainly reflects the patterns of allele frequency
+and correlation structure that we would expect in large-scale
+human studies, and provides a useful and reproducable benchmark.
+Note that as we increase the sample size, the number of variant
+sites also increases [following basic popgen principles?].
+
+The scale of present-day genomic data means that compact
+storage is of paramount importance, and reductions in storage space
+can make a significant difference in overall costs.
+Fig.~\ref{fig-data-storage}A shows that the
+compressed-chunked-array Zarr format used by \toolname{sgkit} results
+in significantly smaller file-sizes than BCF (encoded using
+\texttt{bcftools view -O b}; we used \toolname{bcftools}
+version 1.18 throughout). At the extreme, when we have 1M
+samples, we require XGB for the BCF file and a total of YGB
+for the \toolname{sgkit} version. Note that under the default
+directory based Zarr store this results in XX files of around
+y KB each to store the chunks. Different Zarr storage engines
+can be used, varying from a ZipFile which keeps the entire
+dataset in a single file to a cloud store [details] which stores
+chunks in [a cloud store]. The chunk size is a parameter and
+can be tuned. [bit more detail here].
+
+
+The scale of modern genomic datasets also means that calculations must
+be parallelised. This is illustrated in Fig.~\ref{fig-whole-matrix-compute}B,
+where we compare the performance of a simple calculation requiring
+the examination of all genotypes using \toolname{bcftools}
+and \texttt{sgkit}. Interactive analysis is only possible through
+parallelisation, as optimised single-threaded code
+is simply not fast enough.
+Although it is relatively straightforward to split calculations across
+the genome using tools like \toolname{bcftools}, the process
+is quite manual, and often involves working with HPC schedulers
+or workflow managers [this is very rough, just seeing where it goes].
+Splitting the workload \emph{by sample} however, is much more
+difficult. Parallelisation by variant and sample is an inherent
+part of \texttt{sgkit}'s design---the variant matrix is chunked
+in two dimensions, and Dask transparently maps computations to these
+chunks.
+Fig.~\ref{fig-whole-matrix-compute}B shows how \texttt{sgkit} scales
+on a single server, and how computation time decreases as we use
+more threads. In contrast, using threads with
+\toolname{bcftools} (via the XXX option) makes almost no difference
+because computational model is inherently sequential, and additional threads
+are only used to facilitate decompression.
+As we see in section XXX,
+a major advantage of \texttt{sgkit} is that it not only supports
+scaling \emph{up} within a server, but also scaling \emph{out}
+across multiple servers.
+
+The ability to
+run pre-defined analyses interactively on very large datasets by
+transparently distributing across a cluster is a major boost to
+researcher productivity. The ability to define one's \emph{own}
+analyses using familiar Python data-science tools and libraries,
+and to similarly distribute across a cluster (with single-threaded
+speed close to native compiled code) is a game-changer [say better].
+Fig.~\ref{fig-whole-matrix-compute}C shows the code used in the benchmark
+for \toolname{sgkit} in Fig.~\ref{fig-whole-matrix-compute}B. The heavy
+computation here is done in the \texttt{variant\_stats(ds)} function,
+which computes a set of variables summarising each of the variants
+by examining the entire variant matrix.
+These variables are mostly one-dimensional, and can thefore
+be processed `in-core' using numpy methods very effectively.
+For example, we \texttt{variant\_n\_het} the number of heterozygous samples
+in Fig.~\ref{fig-whole-matrix-compute}C. For $n=10^6$ we have X million
+variants, and the overall size of the data is Y MiB which
+comfortably fits in memory. Thus, the
+\texttt{get\_prob\_dist} function shown here reproduces the functionality
+of the \toolname{bcftools +afdist} plugin, which must be compiled and
+requires detailed knowledge of \toolname{htslib} APIs, using standard
+Python data science tools, and with similar performance.
+
+Reducing the variant matrix to summaries that are separately stored
+is the standard practise when using VCF/BCF files, for precisely the
+reason of avoiding the need to examine the entire genotype matrix.
+These are most often stored as ``INFO`` fields.
+Indeed, \toolname{bcftools +afdist} requires that the \texttt{AC}
+INFO field is present (but does not raise an error
+if it doesn't). Because of the row-based storage approach of
+VCF/BCF, adding any new fields to a file means reading in the entire
+file, and writing out a full copy. For our $n=10^6$ samples example,
+computing \texttt{AC} value required XX hours.
+In contrast, the columnar storage approach (see section XXX) used
+in \toolname{sgkit} means that we can \emph{update} an existing
+dataset with this derived information, without altering the existing
+on-disk information.
+Computing the
+\texttt{variant\_allele\_counts} variable using
+40 threads  required XX minutes, and updating the existing dataset required
+0.X seconds.
+
+The shortcomings of VCF as a storage format and computational
+substrate are well known, and as we discuss in Section XXX,
+storing genetic variation data is a complex issue
+and the subject of substantial ongoing research. The point of this
+section is not to establish that the approach taken by \toolname{sgkit}
+is state-of-the-art, but to contrast the approach we have taken
+with VCF (as the standard storage format) and to demonstrate
+the scalability and efficiency of \toolname{sgkit} as an analysis
+platform.
+
+
+\subsection{Sgkit design principles}
+
+Openness is a core organising principle of sgkit, both in terms of
+development processes and code licensing, and also with respect
+to usability. By following the general philosophy of array-oriented
+computing, the functionality in sgkit is organised around the
+key concept of a ``dataset`` which encapsulates a set of
+related ``variables''. The implementation aims to be as agnostic
+as possible as to the underlying implementation of these arrays,
+which can be stored in-memory as NumPy arrays, in chunked
+compressed on-disk storage as Zarr arrays, or ...
+
+% Perhaps this should be mentioned in the QuantGen section?
+The data layout used here is compatible with the ChromaX
+breeding program simulator~\citep{younis2023chromax}, which
+is leveraging other aspects of the PyData ecosystem to
+fully utilise modern parallel hardware.
+
+
+[In later sections we discuss enabling technologies in detail,
+here we talk about how we use them from a high-level, and layout
+the overall design philosophy. This isn't documentation, rather
+it's the forum where we lay out explicitly early design choices
+and their rationale.]
+
+VCF conversion is handled using
+\toolname{cyvcf2}~\citep{pedersen2017cyvcf2}.
+[TODO any citations for these?]
+BGEN using \toolname{cbgen}.
+Plink support using \toolname{bed\_reader}
+
+[Text from proposal]
+
+The rapid evolution of supporting projects in the PyData ecosystem, including Dask for
+distributed processing, Xarray for coordinated operations on groups of labeled
+n-dimensional arrays, Zarr for n-dimensional array storage on cloud object
+stores, and Numba for hardware acceleration. We’ve designed sgkit from the
+ground up to tightly integrate with these libraries so that we can benefit from
+the many improvements being made upstream, making the PyData ecosystem
+accessible to statistical geneticists.
+
+We've also defined a Zarr representation for efficient storage of this data.
+We’ve designed an Xarray dataset-based data model which can be populated from
+any of the file formats above, and against which library methods are
+implemented. These methods include variant and sample quality control,
+population structure analysis, genome-wide selection scans, and genome-wide
+association analyses, including a novel implementation of the recently
+developed and state-of-the-art REGENIE algorithm.
+
+
+
+\section{Enabling technologies}
 
 [High-level summary of where things are in terms of data analysis
 in genomics, pointing forwards to
@@ -1272,251 +1596,6 @@ test~\citep{wigginton2005note} (GWAS)
 \end{itemize}
 
 
-
-
-
-\section{Discussion}
-
-Outline of a possible narrative by paragraph:
-\begin{itemize}
-\item When VCF was introduced as part of the work of the 1000 Genomes
-project the software landscape was a real mess. It has entirely
-succeeded in standardising the output of variant callers, and methods
-have interoperated well for the past decade. As a method of interchange
-following classical file-oriented paradigms it works well enough.
-It is also a good archival format: when compressed with a well established
-method like gzip and combined with the well-documented description of
-the text, we can be sure that files will still be readable decades
-from now.
-
-\item VCF is holding back large-scale genomics, however, and in particular the
-analysis of population scale genetic variation datasets like UKB and GeL.
-Describe the current state of affairs. Variant datasets are chunked up
-into reasonable sized bits (10s of gigabytes) so that they can be processed
-in parallel. Doing anything with them requires interacting with workflow
-managers. In practise, it is not possible to directly write programs to
-work across multiple large-scale datasets: although the chunks of data
-are given in VCF, orchestrating how the chunks are processed and
-the results combined involves substantial work, involving the workflow
-manager, and the details of how chromosomes are split into chunks.
-Cite examples like the phasing pipelines for UKB from Brownings etc.
-
-\item Distributed computing is the reality, and increasingly datasets
-are being mandatorily stored in public clouds as part of
-Trusted Research Environments. Cloud object stores are the reality
-because it is much cheaper. POSIX file systems are emulated on top of
-this. Benefits of breaking up data into manageable pieces are that
-compute resources can be localised to the data. Compute resources are
-most effectively obtained as short-lived, small VMs that operate
-as part of a large cluster. Large vertically scaled ``pet'' servers
-are much more expensive, and just not feasible for the current
-scale of data. Lots of other architectural
-benefits from the new reality of cloud-based storage.
-
-\item Classical methods based around Unix pipelines and streaming
-files between processes on a single machine are therefore a
-significant mismatch to the reality of large-scale genetic variation
-datasets. The majority of methods suggested to make working
-with VCF data more efficient are based on these ideas: they all
-create a single large file and regard distribution of work
-in a cluster as extrinsic. Most output VCF as the result of queries,
-which also assumes that the VCF data can be efficiently processed.
-This is a reasonable assumption for thousands of samples, but not
-for larger datasets.
-
-\item The key issue here is that VCF is not a \emph{computational}
-format. Contrast VCF with plink, which stores data on disk in a
-form that can be computed on directly. Plink is limited in what
-can be descibed though, does not compress, and is not designed
-to distributed.
-
-\item The large-scale analysis of genetic variation data does not
-need a more efficient file format, which allows files to be downloaded
-somewhat more quickly, and subsets extracted somewhat more efficiently
-as VCF. It needs a standard storage platform that allows data to be
-processed directly without conversion, subsetted efficiently across
-both the variant and sample dimensions, with first-class support
-for all the necessary additional information (GT values etc),
-and that is suited to the realities of today's cloud-based
-storage and processing facilities.
-
-\item We suggest that the model used by Zarr is a good choice for this.
-We have shown that chunks of the genotype matrix compressed with standard
-methods are competitive with highly specialised methods for
-genotype data. In reality most of the storage is for non-genotype
-data anyway, where everyone is essentially doing the same thing.
-Columnar storage allows getting just (e.g.) the variant positions
-without reading everything. Another benefit is that by storing
-fields separately in different cloud objects, they can have
-different permissions. So, users can be given differential access
-to read parts of the dataset, and this is managed directly
-by the cloud storage. Give example.
-
-\item A major strong point of Zarr is its simplicity. All it's doing
-is compressing n-dimensional chunks of numerical data and storing
-them using fixed address keys. This key-value approach means that storage
-is very flexible and implementation is straightforward. There
-are several implementations of the Zarr protocol, and while some of these
-are rudimentary, they could be improved or replaced with relatively
-little effort. Zarr has been successfully used to store petabytes
-of data across different sciences --- genetic variation data is largely
-arrays of numerical data, and not really that different ultimately.
-Zarr is cloud native.
-Zarr is an open specification, built on standard components (contrast
-with Hail).
-
-\item Zarr is not perfect. Discuss limitations around ragged arrays,
-etc. Forthcoming improvements in zarr v3. The whole genotype matrix
-paradigm is challenged by graph genomes as well. While this is
-being worked out, there is still plenty of data to analyse as a
-genotype matrix.
-
-\item Vision. An ecosystem of tools that interoperate
-based on an open, cloud-based format where distribution is naturally
-managed by the stored chunks. Tools can be run on different datasets
-with minimal tuning, not by writing a full layer of orchestration.
-Tools read the data they need, not the entire dataset. Users read
-directly from a single canonical dataset, and do not maintain
-their own filtered copies. We suggest that the Zarr VCF approach
-we have provided would be a good starting point for designing
-such a compute platform.
-
-\item TODO several missing paragraphs here discussing the
-benefits of the other layers of the stack.
-
-\item Closing. Sgkit, built on the fundamental idea of storing
-data in a simple, efficient and distributable fashion, would
-hopefully be one element of this compute ecosystem.
-Xarray, Dask and numba provide powerful tools to make users
-more productive, and enable the interactive analysis of large
-scale variation data. We have illustated the current functionality
-through examples here across X-genetics, but there is much
-potential for more. The library is specifically designed to make
-contribution easy, and we welcome people to the open-source
-community.
-
-\end{itemize}
-
-
-%%% OLD TEXT
-% \begin{itemize}
-
-% \item While API based approaches such as htsget~\citep{kelleher2019htsget}
-% and more generally federated access to data~\citep{rehm2021ga4gh}
-% are an important part of the future of genomics, we must still pay
-% attention to how efficient \emph{local} compute is. We need to
-% store and exchange data in an efficient and easily accessible
-% format. [Could talk about
-% how early GA4GH APIs failed because they didn't really consider
-% efficiency? Converting VCF to JSON was never going to be efficient?
-% Might not be worth getting into]
-
-% \item Users of sgkit will be able to perform data manipulation, analysis, and
-% visualization using familiar PyData tools, with only domain-specific methods
-% requiring domain-specific APIs. They will also benefit from interactive
-% performance for medium-sized data and the ability to scale out to biobank-scale
-% data within the same library. 
-
-% \item
-% Methods developers won’t have to reimplement undifferentiated functionality
-% like defining a custom data model, reading from files into that data model, and
-% validating data. Instead, they can implement their novel methods against
-% sgkit’s data model and instantly gain adjacent functionality and accessibility
-% to sgkit’s user community. This is well illustrated by our implementation of
-% the state-of-the-art REGENIE algorithm, which requires less than 1000 lines of
-% Python code (including documentation) and has comparable performance to the
-% original C++. Further, many key methods in statistical genetics operate on GWAS
-% summary statistics, and integrating individual level data with external summary
-% statistics is an increasingly important strategy which other toolkits have not
-% yet formalized.
-
-% \item sgkit makes it easier for researchers to
-% make their whole analysis pipeline available in a reproducible Jupyter
-% notebook. Most statistical genetics papers describe the collection of
-% command-line utilities used in their methods section, and a select few make a
-% workflow connecting the command-line utilities available. Users of sgkit can
-% work within a Jupyter notebook without having to call out to command-line
-% utilities, making the journey from raw data to scientific findings easier to
-% represent in a single notebook.
-
-% \end{itemize}
-
-\section{Methods}
-
-\subsection{Benchmarking}
-Full details of the benchmarking done in
-Figure~\ref{fig-data-storage} and
-Figure~\ref{fig-whole-matrix-compute}.
-Quick notes:
-
-\begin{itemize}
-\item Dataset is based on subsets of French-Canadian sims. We simplify
-for increasingly large subsets, keeping only variant sites. We then
-convert to VCF and encode to BCF using
-\texttt{tskit vcf | bcftools view -O b}.
-\item We used a chunk size of XX for sgkit, after some experimentation.
-This gave n files of around x MB each for the ``call\_genotypes`` array.
-We used the defaults for savvy and genozip.
-\item For the afdist CPU time we measure the sum of the total user and
-system times required to execute the full command, as reported by GNU
-time. Each tool was instructed to use one thread, where the options
-were provided. For genozip, the time required to compute
-\texttt{genocat file.genozip | bcftools +af-dist}. Because commands
-in the pipeline execute concurrently on mutiple cores, the total CPU time is
-greater than the elapsed time.
-\item For the threading speedup plot, we report the time required to compute
-afdist with 8 threads relative to 1 thread (a speedup of 8 is therefore
-the maximum). For savvy, our C++ implementation of afdist calculates
-on 8 chunks of genome, and aggegates once they are completed.
-Bcftools has a ``--threads`` option, but it only applies to decoding.
-\item Where possible in pipelines we use uncompressed BCF
- output \texttt{-Ou} to make processing more efficient (skip printf
-and parsing costs, which are substantial).
-\item We do not use BCF output in genozip because it doesn't support
-it directly, only VCF (supports BCF by pipeing through bcftools).
-\end{itemize}
-
-\section{Availability of source code and requirements}
-
-\section{Data availability}
-
-\section{Declarations}
-
-\subsection{List of abbreviations}
-
-\subsection{Competing Interests}
-
-\subsection{Funding}
-
-\subsection{Author's Contributions}
-
-\section{Acknowledgements}
-
-
-\bibliography{paper}
-
-
-\clearpage
-\renewcommand\thefigure{S\arabic{figure}}
-\setcounter{figure}{0}
-\renewcommand\thetable{S\arabic{table}}
-\setcounter{table}{0}
-
-\section*{Supplementary Material}
-
-\begin{figure*}[ht]
-	\begin{center}
-		\includegraphics[width=\textwidth]{figures/whole-matrix-compute-supplemental}
-	\end{center}
-	\caption{\label{fig-whole-matrix-compute-supplemental}
-    Limitations of vertical scaling on whole-matrix afdist. The elapsed
-wall-clock time required to compute afdist on the whole genotype matrix using
-different numbers of threads and storage backends (top row), and the relative
-speedup obtained from threads as a fraction of optimum speedup (bottom row).
-[TODO more detail and link to fig 1. Also add the times for bcftools and
-genozip in col 1?]
-}
-\end{figure*}
 
 
 \end{document}

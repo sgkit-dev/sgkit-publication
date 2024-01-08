@@ -43,6 +43,6 @@ plot_data/data-scaling.csv:
 # TODO make rule for time-scaling
 
 # TODO make some substitution rules for this later
-figures/data-scaling.pdf: plot_data/data-scaling.csv src/plot.py
+figures/data-scaling.pdf: plot_data/data-scaling.csv
 	python3 src/plot.py data-scaling plot_data/data-scaling.csv  \
-		plot_data/time-scaling.csv figures/data-scaling.pdf
+		figures/data-scaling.pdf
