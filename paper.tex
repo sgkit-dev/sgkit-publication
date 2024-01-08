@@ -201,7 +201,8 @@ leads to bottlenecks. We discuss parallelism, and why
 bcftools and genozip can make limited use of available cores.
 Also that single-machine parallelism is inevitably constrained
 by IO (which is why savvy's thread utilisation drops off).
-Figure: \ref{fig-whole-matrix-compute}.
+Figure: \ref{fig-whole-matrix-compute}. Also
+supplementary figure ~\ref{fig-whole-matrix-compute-supplemental}.
 
 \paragraph{Subsetting the genotype matrix}
 Existing work overwhelmingly emphasises accessibility by variant.
@@ -451,7 +452,9 @@ and equivalent operations in a single thread for various tools.
 Elapsed time is also reported (dotted line).
 (B) Relative speedup with 8 threads.
 (C) The source code used for the sgkit version of afdist used in these
-benchmarks.
+benchmarks. See Figure~\ref{fig-whole-matrix-compute-supplemental} for
+more detailed comparisons with different numbers of threads, and comparing
+the effects of HDD vs SSD storage.
 \label{fig-whole-matrix-compute}}
 \end{figure}
 
@@ -540,6 +543,9 @@ platform.
 \includegraphics[width=6cm]{figures/subset-matrix-compute} &
 \begin{tcolorbox}[width=7cm]
 \begin{minted}[fontsize=\footnotesize]{python}
+# TODO not sure how best to illustrate this. Trying out various
+# options
+
 ds = sgkit.load_dataset(ds_path)
 dss = ds.isel(
     variants=slice(...),
@@ -553,6 +559,20 @@ bcftools view PATH -S ... -r...
 # genozip
 genocat PATH -r ... -s ...
 | bcftools +fill-tags | bcftools +af-dist
+
+# Complex query
+df = pd.read_csv("sample_info.csv",
+    sep="\t").set_index("sample_id")
+dss = ds.isel(
+    samples=df.decade[ds.sample_id.values] >= 1950)
+sgkit_afdist(dss)
+
+# Corresponding shell
+tail -n+2 sample_info.csv | awk '$2 >= 1950'
+    | cut -f1 > samples.txt
+bcftools view PATH -s samples.txt
+    | bcftools +fill-tags | bcftools +af-dist
+
 \end{minted}
 \end{tcolorbox}
 \end{tabular}
@@ -1425,5 +1445,27 @@ it directly, only VCF (supports BCF by pipeing through bcftools).
 % \includegraphics[width=\linewidth,height=7cm]{frog}
 % \captionof{figure}{This is a figure in the appendix}
 % \end{appendixbox}
+
+\clearpage
+\renewcommand\thefigure{S\arabic{figure}}
+\setcounter{figure}{0}
+\renewcommand\thetable{S\arabic{table}}
+\setcounter{table}{0}
+
+\section*{Supplementary Material}
+
+\begin{figure}[ht]
+	\begin{center}
+		\includegraphics[width=\textwidth]{figures/whole-matrix-compute-supplemental}
+	\end{center}
+	\caption{\label{fig-whole-matrix-compute-supplemental}
+    Limitations of vertical scaling on whole-matrix afdist. The elapsed
+wall-clock time required to compute afdist on the whole genotype matrix using
+different numbers of threads and storage backends (top row), and the relative
+speedup obtained from threads as a fraction of optimum speedup (bottom row).
+[TODO more detail and link to fig 1. Also add the times for bcftools and
+genozip in col 1?]
+}
+\end{figure}
 
 \end{document}
