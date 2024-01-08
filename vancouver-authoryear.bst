@@ -1,12 +1,10 @@
-%% vancouver-elife.bst (v 1.2, 6 July 2017) is modified
-%% by LianTze Lim (Overleaf)
-%% from the
-%% natbib-compatible BibTeX bibliography style `vancouver-authoryear' at  https://github.com/gbhutani/vancouver_authoryear_bibstyle/
+%% natbib-compatible BibTeX bibliography style `vancouver-authoryear'
+%% v1.1 2017/07/2012 Remove sorting by authors' names
 %%
 %% Use
 %%
 %% \usepackage{natbib}
-%% \bibliographystyle{vancouver-compatible}
+%% \bibliographystyle{vancouver-authoryear}
 %%
 %% and cite references with (e.g.)
 %%
@@ -52,7 +50,6 @@ ENTRY
     title
     type
     url
-    doi
     volume
     word
     year
@@ -146,7 +143,7 @@ FUNCTION {no.blank.or.punct}
 FUNCTION {add.semicolon}
 {
   ";" *
-%  no.blank.or.punct
+  no.blank.or.punct
 }
 
 FUNCTION {date.block}
@@ -281,7 +278,7 @@ FUNCTION {remove.dots}
       * % concatenates the last 2 literals, i.e. every character, even a dot, following a "\" will be printed
     }
     { duplicate$ "." = % pushes 1 if the last character is ".", otherwise 0
-      'pop$ %  pushes the pop$ function
+      'pop$ %  pushes the pop$ function 
       { * } % concatenates the last 2 literals
     if$ % pops the last character if it is a dot, otherwise concatenates it with the string on top of the stack
     }
@@ -303,7 +300,7 @@ FUNCTION{string.length}
 STRINGS {replace find text}
 INTEGERS {find_length}
 FUNCTION {find.replace}
-{
+{ 
   'replace :=
   'find :=
   'text :=
@@ -624,9 +621,9 @@ FUNCTION {format.names}
       't :=
       nameptr #1 >
         {
-          nameptr #20
+          nameptr #6
           #1 + =
-          numnames #20
+          numnames #6
           > and
             { "others" 't :=
               #1 'namesleft := }
@@ -636,103 +633,6 @@ FUNCTION {format.names}
             { ", " * t * }
             {
               "," *
-              s nameptr "{ll}" format.name$ duplicate$ "others" =
-                { 't := }
-                { pop$ }
-              if$
-              t "others" =
-                {
-                  " " * bbl.etal *
-                }
-                { " " * t * }
-              if$
-            }
-          if$
-        }
-        't
-      if$
-      nameptr #1 + 'nameptr :=
-      namesleft #1 - 'namesleft :=
-    }
-  while$
-  } if$
-}
-
-FUNCTION {format.names.auth}
-{ 'bibinfo :=
-  duplicate$ empty$ 'skip$ {
-  "." ". " find.replace 's :=
-  "" 't :=
-  #1 'nameptr :=
-  s num.names$ 'numnames :=
-  numnames 'namesleft :=
-    { namesleft #0 > }
-    { s nameptr
-      "{vv~}{ll}{ f{}}{ jj}"
-      %% Highlight first author for eLife
-      nameptr #1 =
-        {format.name$ "\textbf{\color{eLifeMediumGrey} " swap$ * "}" * }
-        {format.name$ }
-        if$
-      remove.dots
-      bibinfo bibinfo.check
-      't :=
-      nameptr #1 >
-        {
-          nameptr #20
-          #1 + =
-          numnames #20
-          > and
-            { "others" 't :=
-              #1 'namesleft := }
-            'skip$
-          if$
-          namesleft #1 >
-            { ", " * t * }
-            {
-              "," *
-              s nameptr "{ll}" format.name$ duplicate$ "others" =
-                { 't := }
-                { pop$ }
-              if$
-              t "others" =
-                {
-                  " " * bbl.etal *
-                }
-                { " " * t * }
-              if$
-            }
-          if$
-        }
-        't
-      if$
-      nameptr #1 + 'nameptr :=
-      namesleft #1 - 'namesleft :=
-    }
-  while$
-  } if$
-}
-
-FUNCTION {format.names.org.original}
-{ 'bibinfo :=
-  duplicate$ empty$ 'skip$ {
-  's :=
-  "" 't :=
-  #1 'nameptr :=
-  s num.names$ 'numnames :=
-  numnames 'namesleft :=
-    { namesleft #0 > }
-    { s nameptr
-      "{ff~}{vv~}{ll}"
-      format.name$
-      bibinfo bibinfo.check
-      't :=
-      nameptr #1 >
-        {
-          namesleft #1 >
-            { "; " * t * }
-            {
-              ";" *
               s nameptr "{ll}" format.name$ duplicate$ "others" =
                 { 't := }
                 { pop$ }
@@ -766,10 +666,7 @@ FUNCTION {format.names.org}
     { namesleft #0 > }
     { s nameptr
       "{ff~}{vv~}{ll}"
-      nameptr #1 =
-        {format.name$ "\textbf{\color{eLifeMediumGrey} " swap$ * "}" * }
-        {format.name$}
-        if$
+      format.name$
       bibinfo bibinfo.check
       't :=
       nameptr #1 >
@@ -812,8 +709,8 @@ FUNCTION {format.key}
 }
 
 FUNCTION {format.authors}
-{
-  author "author" format.names.auth
+{ 
+  author "author" format.names
   %%"." " " "author" find.replace format.names
 }
 
@@ -882,10 +779,6 @@ FUNCTION {format.note}
   url empty$
     'skip$
     { "\urlprefix\url{" url * "}" * output }
-  if$
-  doi empty$
-    'skip$
-    { "\href{" doi * "}{\doiprefix \detokenize{" * doi * "}}" * output }
   if$
  note empty$
     { "" }
@@ -1042,7 +935,7 @@ FUNCTION {format.journal.date}
 FUNCTION {format.date}
 {
   no.blank.or.punct
-  ";"
+  ";" 
   duplicate$ empty$
   year  "year"  bibinfo.check duplicate$ empty$
     { swap$ 'skip$
@@ -1220,9 +1113,6 @@ FUNCTION {format.vol.num.pages}
   format.journal.pages
 }
 
-FUNCTION {format.volume}
-{ volume "\textbf{" swap$ * "}" * }
-
 FUNCTION {format.chapter.pages}
 { chapter empty$
     'format.pages
@@ -1245,14 +1135,8 @@ FUNCTION {format.chapter.pages}
 
 	FUNCTION {format.booktitle}
 	{
-	  booktitle "\emph{" swap$ * "}" * "booktitle" bibinfo.check
+	  booktitle "booktitle" bibinfo.check
 	}
-
-    FUNCTION {format.journal}
-	{
-	  journal "\emph{" swap$ * "}" * "journal" bibinfo.check
-	}
-
 
 	FUNCTION {format.in.ed.booktitle}
 	{ format.booktitle duplicate$ empty$ 'skip$
@@ -1379,7 +1263,7 @@ FUNCTION {misc}
   type missing$
     { skip$ }
 %    { format.type "type" output.check }
-    { "type" output.check }
+    { "type" output.check }    
     %%{ inbrackets type output }
   if$
   new.block
@@ -1421,15 +1305,10 @@ FUNCTION {article}
   new.block
   journal
   remove.dots
-  ". " *
   "journal" bibinfo.check
   "journal" output.check
-  new.block
-  format.journal.date
-  "year" output.check
-  no.blank.or.punct
+  format.journal.date "year" output.check
   add.semicolon
-  add.blank
   format.vol.num.pages output
   new.block
   format.note output
@@ -1444,7 +1323,7 @@ FUNCTION {book}
         { format.organizations "organization" output.check }
         { format.editors "author and editor" output.check }
       if$
-    }
+    } 
     { format.authors output.nonnull
       "author and editor" editor either.or.check
     }
@@ -1824,30 +1703,30 @@ FUNCTION {editor.sort}
 }
 FUNCTION {presort}
 { calc.label
-  label sortify
-  "    "
-  *
-  type$ "book" =
-  type$ "inbook" =
-  or
-    'author.editor.sort
-    { type$ "proceedings" =
-        'editor.sort
-        'author.sort
-      if$
-    }
-  if$
-  #1 entry.max$ substring$
-  'sort.label :=
-  sort.label
-  *
-  "    "
-  *
-  title field.or.null
-  sort.format.title
-  *
-  #1 entry.max$ substring$
-  'sort.key$ :=
+  % label sortify
+  % "    "
+  % *
+  % type$ "book" =
+  % type$ "inbook" =
+  % or
+  %   'author.editor.sort
+  %   { type$ "proceedings" =
+  %       'editor.sort
+  %       'author.sort
+  %     if$
+  %   }
+  % if$
+  % #1 entry.max$ substring$
+  % 'sort.label :=
+  % sort.label
+  % *
+  % "    "
+  % *
+  % title field.or.null
+  % sort.format.title
+  % *
+  % #1 entry.max$ substring$
+  % 'sort.key$ :=
 }
 
 ITERATE {presort}
@@ -1903,8 +1782,8 @@ FUNCTION {bib.sort.order}
   #1 entry.max$ substring$
   'sort.key$ :=
 }
-ITERATE {bib.sort.order}
-SORT
+% ITERATE {bib.sort.order}
+% SORT
 FUNCTION {begin.bib}
 { preamble$ empty$
     'skip$
@@ -1914,12 +1793,10 @@ FUNCTION {begin.bib}
   write$ newline$
   "\providecommand{\natexlab}[1]{#1}"
   write$ newline$
-%  "\providecommand{\url}[1]{\texttt{#1}}"
-%  write$ newline$
+  "\providecommand{\url}[1]{\texttt{#1}}"
+  write$ newline$
 %  "\providecommand{\urlprefix}{URL }"      ++++ EMPTIED by default
   "\providecommand{\urlprefix}{}"
-  write$ newline$
-  "\providecommand{\doiprefix}{doi: }"
   write$ newline$
 }
 EXECUTE {begin.bib}

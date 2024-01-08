@@ -24,7 +24,6 @@ spellcheck: aspell.conf
 	aspell --conf ./aspell.conf --check paper.tex
 
 clean:
-	rm -f *.pdf
 	rm -f *.log *.dvi *.aux
 	rm -f *.blg *.bbl
 	rm -fR _minted*
@@ -32,6 +31,11 @@ clean:
 mrproper: clean
 	rm -f *.ps *.pdf
 
+
+
+# TODO these rules for creating figures and figure data are out of date.
+# The plan is to systematise things once the basic structure has settled
+# down a bit more
 
 plot_data/data-scaling.csv:
 	python3 src/collect_data.py file-size 'scaling/data/chr21_n10*.ts' $@
