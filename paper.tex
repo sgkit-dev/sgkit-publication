@@ -1,77 +1,103 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% ELIFE ARTICLE TEMPLATE
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% PREAMBLE
-\documentclass[9pt,lineno]{elife}
-% Use the onehalfspacing option for 1.5 line spacing
-% Use the doublespacing option for 2.0 line spacing
-% Please note that these options may affect formatting.
-% Additionally, the use of the \newcommand function should be limited.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Please note that whilst this template provides a
+% preview of the typeset manuscript for submission, it
+% will not necessarily be the final publication layout.
+%
+% letterpaper/a4paper: US/UK paper size toggle
+% num-refs/alpha-refs: numeric/author-year citation and bibliography toggle
 
-\usepackage{minted}
-\usepackage{tcolorbox}
-\usepackage{etoolbox}
-% \BeforeBeginEnvironment{minted}{\begin{tcolorbox}}
-% \AfterEndEnvironment{minted}{\end{tcolorbox}}
+%\documentclass[letterpaper]{oup-contemporary}
+\documentclass[a4paper,num-refs]{oup-contemporary}
 
-% Systematise how we typeset elements of the API (functions, variables, etc)
+%%% Journal toggle; only specific options recognised.
+%%% (Only "gigascience" and "general" are implemented now. Support for other journals is planned.)
+\journal{gigascience}
+
+\usepackage{graphicx}
+\usepackage{siunitx}
+
+% Local definitions to systematise tool naming
 \newcommand{\sgapi}[1]{\texttt{#1}}
 \newcommand{\toolname}[1]{\texttt{#1}}
-
 \newcommand{\sgkit}{\texttt{sgkit}}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% ARTICLE SETUP
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%% Flushend: You can add this package to automatically balance the final page, but if things go awry (e.g. section contents appearing out-of-order or entire blocks or paragraphs are coloured), remove it!
+% \usepackage{flushend}
+
 \title{Scalable statistical genetic data analysis in Python}
 
-\author[1]{Eric Czech}
-\author[1,2\authfn{1}\authfn{3}]{Firstname Middlename Familyname}
-\author[2\authfn{1}\authfn{4}]{Firstname Initials Surname}
-\author[2*]{Firstname Surname}
-\affil[1]{Related Sciences LLC}
-\affil[2]{Institution 2}
+%%% Use the \authfn to add symbols for additional footnotes, if any. 1 is reserved for correspondence emails; then continuing with 2 etc for contributions.
+\author[1,\authfn{1},\authfn{2}]{First Author}
+\author[2,\authfn{1},\authfn{2}]{Second Author}
+\author[2]{Third Author}
+\author[2,\authfn{1}]{Fourth Author}
 
-\corr{email1@example.com}{FMS}
-\corr{email2@example.com}{FS}
+\affil[1]{First Institution}
+\affil[2]{Second Institution}
 
-\contrib[\authfn{1}]{These authors contributed equally to this work}
-\contrib[\authfn{2}]{These authors also contributed equally to this work}
+%%% Author Notes
+\authnote{\authfn{1}abc@uni.edu; alphbeta@lab.edu}
+\authnote{\authfn{2}Contributed equally.}
 
-\presentadd[\authfn{3}]{Department, Institute, Country}
-\presentadd[\authfn{4}]{Department, Institute, Country}
-% \presentadd[\authfn{5}]{eLife Sciences editorial Office, eLife Sciences, Cambridge, United Kingdom}
+%%% Paper category
+\papercat{Paper}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% ARTICLE START
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%% "Short" author for running page header
+\runningauthor{First et al.}
+
+%%% Should only be set by an editor
+\jvolume{00}
+\jnumber{0}
+\jyear{2023}
 
 \begin{document}
 
+\begin{frontmatter}
 \maketitle
 
-% Please provide an abstract of no more than 150 words. Your abstract should
-% explain the main contributions of your article, and should not contain any
-% material that is not included in the main text.
+%%%
+%%% Previous abstract
+%%%
+% The PyData ecosystem is an umbrella term covering Python packages based on a
+% broad range of modern techniques, such as chunk-compressed columnar data
+% storage, just-in-time compilation of numerical code, and scaling of
+% calculations across clusters of computers. Together, these technologies have
+% been successfully applied in scientific applications using data at the petabyte
+% scale. These technologies, and the many benefits that they provide, however,
+% have not been successfully applied in the field of genomics, which is currently
+% making the transition to working at petabyte scale. We present sgkit, a Python
+% package designed to bring the benefits of the PyData ecosystem to genomics,
+% allowing users to efficiently analyse large-scale data using familiar tools. We
+% discuss the underlying design principles of these technologies and illustrate
+% their suitability in genetics and genomics applications, via examples on
+% large-scale datasets such as UK Biobank.
 
-\begin{abstract}
-The PyData ecosystem is an umbrella term covering Python packages based on a
-broad range of modern techniques, such as chunk-compressed columnar data
-storage, just-in-time compilation of numerical code, and scaling of
-calculations across clusters of computers. Together, these technologies have
-been successfully applied in scientific applications using data at the petabyte
-scale. These technologies, and the many benefits that they provide, however,
-have not been successfully applied in the field of genomics, which is currently
-making the transition to working at petabyte scale. We present sgkit, a Python
-package designed to bring the benefits of the PyData ecosystem to genomics,
-allowing users to efficiently analyse large-scale data using familiar tools. We
-discuss the underlying design principles of these technologies and illustrate
-their suitability in genetics and genomics applications, via examples on
-large-scale datasets such as UK Biobank.
+\begin{abstract} The Abstract (250 words maximum) should be structured to
+include the following details:
+\textbf{Background}, the context and purpose of
+the study;
+\textbf{Results}, the main findings;
+\textbf{Conclusions}, brief
+summary and potential implications. Please minimize the use of abbreviations
+and do not cite references in the abstract.
 \end{abstract}
 
-\section{Introduction}
+\begin{keywords}
+Keyword1; keyword 2; keyword 3 (Three to ten keywords representing the main content of the article)
+\end{keywords}
+\end{frontmatter}
 
+%%% Key points will be printed at top of second page
+\begin{keypoints*}
+\begin{itemize}
+\item This is the first point
+\item This is the second point
+\item One last point.
+\end{itemize}
+\end{keypoints*}
+
+\section{Background}
 % This current phrasing would annoy people, just spewing this
 % out to roughly say what I think is relevant, we can refine later.
 The study of genetics is currently transforming into a true big-data science.
@@ -167,8 +193,8 @@ designed for ease of contribution,
 and development processes informed
 by combined decades of experience in open-source projects.
 
-
 \section{Results}
+
 Here is a quick rundown of the sections and what they do:
 
 \paragraph{Storing genetic variation data}
@@ -335,13 +361,13 @@ data for a subset of samples. In practise, this means that calculations
 are limited by I/0 bandwidth.
 
 \begin{figure}
-\begin{tabular}{cc}
+\begin{tabular}{c}
 % The source for this figure is a google drawing
 % Currently using
 % https://docs.google.com/drawings/d/1NheB6LCvvkB4C0nAoSFwoYVZ3mtOPaseGmg_mZvcQ8I
 % See https://github.com/pystatgen/sgkit-publication/issues/21 for
 % discussion
-\includegraphics[width=6cm]{diagrams/sgkit_xarray_diagram.pdf} &
+\includegraphics[width=6cm]{diagrams/sgkit_xarray_diagram.pdf} \\
 \includegraphics[width=6cm]{figures/data-scaling}
 \end{tabular}
 \caption{Chunked compressed storage of the genotype matrix using Zarr.
@@ -372,7 +398,6 @@ very flexible approach to storing the chunks. By using a native cloud store
 for these chunks, compute nodes can directly access the chunks that
 are needed, and not read irrelevant data.
 [TODO flesh out and more stuff.]
-
 
 \subsection{Scaling up interactive analysis}
 The storage and analysis of datasets consisting of hundreds of
@@ -415,36 +440,36 @@ can be tuned. [bit more detail here].
 \begin{figure}
 \begin{tabular}{cc}
 \includegraphics[width=6cm]{figures/whole-matrix-compute} &
-\begin{tcolorbox}[width=7cm]
-\begin{minted}[fontsize=\footnotesize]{python}
-def sgkit_afdist(ds, num_bins=10):
-    ds_vs = sgkit.variant_stats(ds).compute()
-    bins = np.linspace(0, 1.0, num_bins + 1)
-    bins[-1] += 0.01
-    af = ds_vs.variant_allele_frequency.values[:, 1]
-    pRA = 2 * af * (1 - af)
-    pAA = af * af
-    hets = ds_vs.variant_n_het.values
-    homs = ds_vs.variant_n_hom_alt.values
-    a = np.bincount(
-        np.digitize(pRA, bins),
-        weights=hets,
-        minlength=num_bins + 1)
-    b = np.bincount(
-        np.digitize(pAA, bins),
-        weights=homs,
-        minlength=num_bins + 1)
-    count = (a + b).astype(int)
-    return pd.DataFrame({
-        "start": bins[:-1],
-        "stop": bins[1:],
-        "prob_dist":
-        count[1:]})
+% \begin{tcolorbox}[width=7cm]
+% \begin{minted}[fontsize=\footnotesize]{python}
+% def sgkit_afdist(ds, num_bins=10):
+%     ds_vs = sgkit.variant_stats(ds).compute()
+%     bins = np.linspace(0, 1.0, num_bins + 1)
+%     bins[-1] += 0.01
+%     af = ds_vs.variant_allele_frequency.values[:, 1]
+%     pRA = 2 * af * (1 - af)
+%     pAA = af * af
+%     hets = ds_vs.variant_n_het.values
+%     homs = ds_vs.variant_n_hom_alt.values
+%     a = np.bincount(
+%         np.digitize(pRA, bins),
+%         weights=hets,
+%         minlength=num_bins + 1)
+%     b = np.bincount(
+%         np.digitize(pAA, bins),
+%         weights=homs,
+%         minlength=num_bins + 1)
+%     count = (a + b).astype(int)
+%     return pd.DataFrame({
+%         "start": bins[:-1],
+%         "stop": bins[1:],
+%         "prob_dist":
+%         count[1:]})
 
-ds = sgkit.load_dataset(ds_path)
-df = sgkit_afdist(ds)
-\end{minted}
-\end{tcolorbox}
+% ds = sgkit.load_dataset(ds_path)
+% df = sgkit_afdist(ds)
+% \end{minted}
+% \end{tcolorbox}
 \end{tabular}
 \caption{Whole-matrix compute performance with increasing sample size.
 (A) Total CPU time required to run \texttt{bcftools +afdist}
@@ -541,40 +566,40 @@ platform.
 \begin{figure}
 \begin{tabular}{cc}
 \includegraphics[width=6cm]{figures/subset-matrix-compute} &
-\begin{tcolorbox}[width=7cm]
-\begin{minted}[fontsize=\footnotesize]{python}
-# TODO not sure how best to illustrate this. Trying out various
-# options
+% \begin{tcolorbox}[width=7cm]
+% \begin{minted}[fontsize=\footnotesize]{python}
+% # TODO not sure how best to illustrate this. Trying out various
+% # options
 
-ds = sgkit.load_dataset(ds_path)
-dss = ds.isel(
-    variants=slice(...),
-    samples=(slice(...)))
-df = sgkit_afdist(dss)
+% ds = sgkit.load_dataset(ds_path)
+% dss = ds.isel(
+%     variants=slice(...),
+%     samples=(slice(...)))
+% df = sgkit_afdist(dss)
 
-# bcftools
-bcftools view PATH -S ... -r...
-| bcftools +fill-tags | bcftools +af-dist
+% # bcftools
+% bcftools view PATH -S ... -r...
+% | bcftools +fill-tags | bcftools +af-dist
 
-# genozip
-genocat PATH -r ... -s ...
-| bcftools +fill-tags | bcftools +af-dist
+% # genozip
+% genocat PATH -r ... -s ...
+% | bcftools +fill-tags | bcftools +af-dist
 
-# Complex query
-df = pd.read_csv("sample_info.csv",
-    sep="\t").set_index("sample_id")
-dss = ds.isel(
-    samples=df.decade[ds.sample_id.values] >= 1950)
-sgkit_afdist(dss)
+% # Complex query
+% df = pd.read_csv("sample_info.csv",
+%     sep="\t").set_index("sample_id")
+% dss = ds.isel(
+%     samples=df.decade[ds.sample_id.values] >= 1950)
+% sgkit_afdist(dss)
 
-# Corresponding shell
-tail -n+2 sample_info.csv | awk '$2 >= 1950'
-    | cut -f1 > samples.txt
-bcftools view PATH -s samples.txt
-    | bcftools +fill-tags | bcftools +af-dist
+% # Corresponding shell
+% tail -n+2 sample_info.csv | awk '$2 >= 1950'
+%     | cut -f1 > samples.txt
+% bcftools view PATH -s samples.txt
+%     | bcftools +fill-tags | bcftools +af-dist
 
-\end{minted}
-\end{tcolorbox}
+% \end{minted}
+% \end{tcolorbox}
 \end{tabular}
 \caption{Whole-matrix compute performance with increasing sample size.
 (A) Total CPU time required to run the afdist calculation for
@@ -1446,125 +1471,26 @@ and parsing costs, which are substantial).
 \item We do not use BCF output in genozip because it doesn't support
 it directly, only VCF (supports BCF by pipeing through bcftools).
 \end{itemize}
-\section{Acknowledgments}
 
-\bibliography{paper.bib}
+\section{Availability of source code and requirements}
 
-% \subsection{Level 2 Heading}
+\section{Data availability}
 
-% \subsubsection{Level 3 Heading}
+\section{Declarations}
 
-% \paragraph{Level 4 Heading}
+\subsection{List of abbreviations}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Example Table:
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% \begin{table}[bt]
-% \caption{\label{tab:example}Automobile Land Speed Records (GR 5-10).}
-% % Use "S" column identifier to align on decimal point
-% \begin{tabular}{S l l l r}
-% \toprule
-% {Speed (mph)} & Driver          & Car                        & Engine    & Date     \\
-% \midrule
-% 407.447     & Craig Breedlove & Spirit of America          & GE J47    & 8/5/63   \\
-% 413.199     & Tom Green       & Wingfoot Express           & WE J46    & 10/2/64  \\
-% 434.22      & Art Arfons      & Green Monster              & GE J79    & 10/5/64  \\
-% 468.719     & Craig Breedlove & Spirit of America          & GE J79    & 10/13/64 \\
-% 526.277     & Craig Breedlove & Spirit of America          & GE J79    & 10/15/65 \\
-% 536.712     & Art Arfons      & Green Monster              & GE J79    & 10/27/65 \\
-% 555.127     & Craig Breedlove & Spirit of America, Sonic 1 & GE J79    & 11/2/65  \\
-% 576.553     & Art Arfons      & Green Monster              & GE J79    & 11/7/65  \\
-% 600.601     & Craig Breedlove & Spirit of America, Sonic 1 & GE J79    & 11/15/65 \\
-% 622.407     & Gary Gabelich   & Blue Flame                 & Rocket    & 10/23/70 \\
-% 633.468     & Richard Noble   & Thrust 2                   & RR RG 146 & 10/4/83  \\
-% 763.035     & Andy Green      & Thrust SSC                 & RR Spey   & 10/15/97\\
-% \bottomrule
-% \end{tabular}
+\subsection{Competing Interests}
 
-% \medskip
-% Source: \url{https://www.sedl.org/afterschool/toolkits/science/pdf/ast_sci_data_tables_sample.pdf}
+\subsection{Funding}
 
-% \tabledata{This is a description of a data source.}\label{tabdata:first}
-% \tablesrccode{This is a description of a source code.}\label{tabsrccode:first}
+\subsection{Author's Contributions}
 
-% \end{table}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% feature box
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% \begin{featurebox}
-% \caption{This is an example feature box}
-% \label{box:simple}
-% This is a feature box. It floats!
-% \medskip
-
-% \includegraphics[width=5cm]{example-image}
-% \featurefig{`Figure' and `table' captions in feature boxes should be entered with \texttt{\textbackslash featurefig} and \texttt{\textbackslash featuretable}. They're not really floats.}
-
-% \lipsum[1]
-% \end{featurebox}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Figures
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% \begin{figure}
-% \includegraphics[width=\linewidth]{elife-13214-fig7}
-% \caption{A text-width example.}
-% \label{fig:view}
-% %% If the optional argument in the square brackets is "none", then the caption *will not appear in the main figure at all* and only the full caption will appear under the supplementary figure at the end of the manuscript.
-% %
-% \figsupp[Shorter caption for main text.]
-% {This is a supplementary figure's full caption, which will be used at the end of the manuscript.
-%   \figsuppdata{A data source; see \url{https://doi.org/xxx}}
-%   \figsuppdata{Another data source.}
-%   \figsuppsrccode{And the source code.}}
-% {\includegraphics[width=6cm]{frog}}\label{figsupp:sf1}
-% %
-% %
-% \figsupp{This is another supplementary figure.}
-% {\includegraphics[width=6cm]{frog}}
-% %
-% %
-% \videosupp{This is a description of a video supplement.}\label{videosupp:sv1}
-% \figdata{This is a description of a data source.}\label{figdata:first}
-% \figdata{This is another description of a data source.}\label{figdata:second}
-% \figsrccode{This is a description of a source code.}\label{figsrccode:first}
-% \end{figure}
+\section{Acknowledgements}
 
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% APPENDICES
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\bibliography{paper}
 
-% \appendix
-% \begin{appendixbox}
-% \label{first:app}
-% \section{Firstly}
-% \lipsum[1]
-
-%% Sadly, we can't use floats in the appendix boxes. So they don't "float", but use \captionof{figure}{...} and \captionof{table}{...} to get them properly caption.
-% \begin{center}
-% \includegraphics[width=\linewidth,height=7cm]{frog}
-% \captionof{figure}{This is a figure in the appendix}
-% \end{center}
-
-% \section{Secondly}
-
-% \lipsum[5-8]
-
-% \begin{center}
-% \includegraphics[width=\linewidth,height=7cm]{frog}
-% \captionof{figure}{This is a figure in the appendix}
-% \end{center}
-
-% \end{appendixbox}
-
-% \begin{appendixbox}
-% \includegraphics[width=\linewidth,height=7cm]{frog}
-% \captionof{figure}{This is a figure in the appendix}
-% \end{appendixbox}
 
 \clearpage
 \renewcommand\thefigure{S\arabic{figure}}
@@ -1588,4 +1514,6 @@ genozip in col 1?]
 }
 \end{figure}
 
+
 \end{document}
+
