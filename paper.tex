@@ -201,9 +201,9 @@ by combined decades of experience in open-source projects.
 \section{Results}
 
 \subsection{Overview of narrative for draft}
-This subsection is a high-level summary of the main sections and 
-their narrative connections. \textbf{The section is for authors only and 
-will be deleted 
+This subsection is a high-level summary of the main sections and
+their narrative connections. \textbf{The section is for authors only and
+will be deleted
 once the sections themselves have matured reasonably}
 
 \paragraph{Storing genetic variation data}
@@ -453,12 +453,12 @@ dss = ds.isel(
     samples=df.decade[ds.sample_id.values] >= 1950)
 sgkit_afdist(dss)
 
+
 # Corresponding shell
-tail -n+2 sample_info.csv | awk '$2 >= 1950'
+% tail -n+2 sample_info.csv | awk '$2 >= 1950'
     | cut -f1 > samples.txt
 bcftools view PATH -s samples.txt
     | bcftools +fill-tags | bcftools +af-dist
-
 \end{minted}
 \end{tcolorbox}
 \end{tabular}
@@ -475,14 +475,68 @@ to execute.
 
 
 \subsection{Distributed computation}
-Why do we need distributed compute? Summary of current
-approaches (chunk up along the genome using HPC or workflow
-managers). Advantages of true distributed compute, MapReduce
-etc. Summary of earlier efforts like ADAM.
+Distributed computation has been the reality in the analysis
+of genetic variation for many years,
+where data is most often provided as per-chromosome VCFs.
+This chunking provides a fairly straightforward way to parallelise
+computations, using HPC schedulers to split work per-file.
+When more fine-grained parallelism is required, users must
+provide exact genome coordinates of the genome regions
+as part of their submission scripts. Combining results
+is a manual operation.
+Workflow engines such as
+Snakemake~\cite{koster2012snakemake,molder2021sustainable}
+and [TODO mention WDL, Cromwell, etc?] make such analyses
+much easier, but there is still a great deal of room for
+mistakes.
+Per-chromosome VCFs are not practical for biobank scale
+projects, however, and variant call data tends to be split
+into many (still large) files.
+For example, the VCFs for 150K UKB WGS data~\cite{halldorsson2022sequences}
+are provided in 50kb chunks~\cite{browning2023statistical}, resulting in
+hundreds of files per chromosome.
+% This is horrible writing, but the point is important.
+While these files provide a natural
+unit for distributing work, the details of how they
+are split differ and essentially there is
+no interoperability among large-scale datasets because the VCFs are
+so cumbersome that a separate orchestration layer is required to
+access the data in parallel.
+
+Despite this long history of de-facto distributed computation
+and the clear need for better methods of accessing genetic
+variation data in a distributed fashion, there is almost
+no scientific literature on the topic (in stark contrast to the
+study of methods to compress a VCF into a single file,
+as discussed in section XXX).
+
+[This is a really rough outline, also not sure how exactly
+we sequence the ideas here. Just getting paragraph fragments
+on paper. We do need to explain something of the hadoop ecosystem
+to readers who are not familiar, though.]
+Distributed analytics for large-scale data is a mature
+techology, with many different approaches. Hadoop~\citep{white2012hadoop}
+is the original method, and remains the basis of the
+dominant ecosystem. HDFS. Spark [CITATION?] lets us
+do more complex analytics. Parquet [CITATION?]
+
+Although the Hadoop ecosystem has been hugely successful
+in many domains, it has had a limited impact in genomics.
+[List some things that have been tried for e.g variant calling
+, like ADAM~\citep{nothaft2015rethinking}].
+[Briefly mention two approaches using Hadoop clusters
+~\citep{boufea2017managing,fan2020variant}, to not very
+exiting results].
+
+[Hadoop/Spark/Parquet are fundamentally unsuited to genetic
+variation data [WHY]?]
+
 Discuss Hail. It's awesome, has enabled current
 generation of mega-scale projects. Drawbacks are the
 architecture has emphasised performance etc over adaptability
-and simplicity. File format is undocumented, etc.
+and simplicity. Uses bits of Spark for X, but custom YZ .
+File format is undocumented, etc.
+
 Discuss why the sgkit architecture is suited to distributed
 computation. Discuss Zarr's use in cloud stores, and existing
 deployments. Discuss Dask.
@@ -517,7 +571,7 @@ GWAS typically use genotype array data because of
 its continuing cost-effectiveness, although there has been
 exome~\citep{lek2016analysis,backman2021exome}
 and large-scale whole genome sequence data is becoming increasingly
-available~\citep{halldorsson2022sequences}.
+available~\citep{halldorsson2022sequences,uk2023whole}.
 Genotype array data is usually imputed using software such
 as BEAGLE~\citep{browning2018one} or IMPUTE~\citep{howie2011genotype}.
 % Mention phasing?
@@ -1315,29 +1369,6 @@ and lots of prior work in this space e.g. \citep{kelleher2013processing}
 htslib~\citep{bonfield2021htslib}, CRAM~\citep{bonfield2014scramble,bonfield2022cram}
 which uses a columnar approach
 \end{itemize}
-
-\subsubsection{Distributed computing}
-
-Beyond a certain scale of data there is no alternative but to
-parallelise calculations across multiple computers if you wish
-them to complete in a reasonable timeframe. Classically in
-High Performance Computing (HPC) environments, most often used
-to perform scientific computing, such distributed computing
-is done using the Message Passing Interface (MPI). MPI
-typically assumes a low-latency connection between nodes in
-cluster, often with specialised hardware interconnects,
-and can be used very effectively to [do things like solve big PDEs].
-However, MPI is [hard to program and hard to run], and applications
-in genomics have been limited to [things like the ABySS assembler].
-
-[Paragraph describing, Big data, Hadoop, MapReduce, Spark, etc. Why
-they don't use MPI, that the problem being solved was/is.
-Applications to genomics like ADAM~\citep{nothaft2015rethinking} were promising, but never really
-took off. Hail (see also genomics section) notably does a
-bunch of things well, but only by rewriting whole chunks of the
-underlying technologies]
-
-We use Dask [for reasons].
 
 \subsubsection{Just-in-time compilation}
 
