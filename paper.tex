@@ -29,7 +29,7 @@
 %%% Flushend: You can add this package to automatically balance the final page, but if things go awry (e.g. section contents appearing out-of-order or entire blocks or paragraphs are coloured), remove it!
 % \usepackage{flushend}
 
-\title{Scalable statistical genetic data analysis in Python}
+\title{Scalable analysis of genetic variation data in Python}
 
 %%% Use the \authfn to add symbols for additional footnotes, if any. 1 is reserved for correspondence emails; then continuing with 2 etc for contributions.
 \author[1,\authfn{1},\authfn{2}]{First Author}
@@ -60,31 +60,74 @@
 \begin{frontmatter}
 \maketitle
 
-%%%
-%%% Previous abstract
-%%%
-% The PyData ecosystem is an umbrella term covering Python packages based on a
-% broad range of modern techniques, such as chunk-compressed columnar data
-% storage, just-in-time compilation of numerical code, and scaling of
-% calculations across clusters of computers. Together, these technologies have
-% been successfully applied in scientific applications using data at the petabyte
-% scale. These technologies, and the many benefits that they provide, however,
-% have not been successfully applied in the field of genomics, which is currently
-% making the transition to working at petabyte scale. We present sgkit, a Python
-% package designed to bring the benefits of the PyData ecosystem to genomics,
-% allowing users to efficiently analyse large-scale data using familiar tools. We
-% discuss the underlying design principles of these technologies and illustrate
-% their suitability in genetics and genomics applications, via examples on
-% large-scale datasets such as UK Biobank.
+% The Abstract (250 words maximum) should be structured to
+% include the following details:
+% \textbf{Background}, the context and purpose of
+% the study;
+% \textbf{Results}, the main findings;
+% \textbf{Conclusions}, brief
+% summary and potential implications. Please minimize the use of abbreviations
+% and do not cite references in the abstract.
+% The Abstract (250 words maximum) should be structured to
+% include the following details:
+% \textbf{Background}, the context and purpose of % the study;
+% \textbf{Results}, the main findings;
+% \textbf{Conclusions}, brief summary and potential implications. 
 
-\begin{abstract} The Abstract (250 words maximum) should be structured to
-include the following details:
-\textbf{Background}, the context and purpose of
-the study;
-\textbf{Results}, the main findings;
-\textbf{Conclusions}, brief
-summary and potential implications. Please minimize the use of abbreviations
-and do not cite references in the abstract.
+%% NOTE: this is much too long currently, but keeping for now so we 
+% can see which stuff migrates to the intro
+\begin{abstract}
+\textbf{Background:}
+Vast quantities of genetic variation data have been collected to 
+address fundamental scientific questions across multiple disciplines.
+Genetic variation datasets are usually modelled as a ``genotype matrix'',
+where rows denote positions on the genome where variation occurs and 
+columns represent the state of sequenced samples at that position.
+The largest dataset available today, the UK Biobank, 
+has a genotype matrix of approximately 1,000,000,000 rows and 500,000 columns,
+along with metadata and quality control information of similar dimension.
+Processing such matrices on a single computer is not feasible,
+and computations must be distributed to complete in a reasonable timeframe.
+Classical methods in genomics are inherently single-computer focused, 
+oriented around either streaming data through Unix pipelines or 
+storing the entire genotype matrix in memory.
+The standard file format for genetic variation data (VCF: Variant Call Format)
+is also fundamentally unsuited to distributed computation and is a severe 
+bottleneck at the Biobank scale.
+Researchers either perform ad-hoc distribution by splitting across VCF files
+and dispatching jobs using workflow managers, 
+or convert data into the undocumented and/or proprietary formats 
+used by the few specialised tools that do support automatic distribution
+of calculations on a genotype matrix.
+
+\textbf{Results:} We present sgkit, a scalable toolkit for processing genetic 
+variation data built on widely-used technologies from the Python data-science
+ecosystem. A key part of this approach is to use Zarr, a cloud-native
+format for storing multi-dimensional numerical data, widely used in the
+across the sciences to store petabyte-scale datasets, and with 
+multiple implementations.  We show that data stored in this format has 
+comparable compression levels to specialised methods to compress the 
+genotype matrix. We show that performing calculations on the genotype
+matrix on a single computer is much more efficient at scale using sgkit than standard 
+approaches based on VCF, and is comparable with state-of-the-art methods
+using compiled languages. Moreover, sgkit can also natively distribute
+computation over a cluster using Dask, with no changes required to client code.
+We show what sgkit is competitive with Hail (the most popular package for distributed
+analysis of genetic variation data) in terms of performance, but is 
+much more flexible and extensible. We demonstrate the 
+current capabilities of sgkit to perform dataset quality control,
+and applications in statistical, population, quantitative and phylo genetics.
+
+\textbf{Conclusions:} 
+Sgkit enables the interactive analysis of Biobank-scale genetic variation
+datasets via familiar and powerful Python data science tools, boosting
+researcher productivity. Leveraging these tools also substantially 
+reduces software development effort for creating new methods.
+The vcf-zarr specification may additionally provide a useful starting 
+point for defining a standard computational format for genetic variation data.
+Such a standard, based on the language-agnostic Zarr format, would enable a
+diverse ecosystem of tools to efficiently access subsets of the data without
+copying, and substantially reduce research costs.
 \end{abstract}
 
 \begin{keywords}
