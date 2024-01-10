@@ -145,9 +145,8 @@ Keyword1; keyword 2; keyword 3 (Three to ten keywords representing the main cont
 \end{keypoints*}
 
 \section{Background}
-% This current phrasing would annoy people, just spewing this
-% out to roughly say what I think is relevant, we can refine later.
-
+[TODO rewrite this based on the first paragraph of the abstract above 
+when cutting it down.]
 The study of genetics is currently transforming into a true big-data science.
 Since the Human Genome Project, genomics has required working with
 signicant volumes of data and the specialised methods
@@ -162,9 +161,9 @@ population scale genomics datasets such as UK Biobank, GeL, etc,
 the requirements for analysing the data have far outgrown these
 methods. Simple queries can require minutes to complete, which
 has a negative effect on researcher productivity, as well as limiting
-the analyses that can be performed. The financial cost of working
-with such datasets is also substantial, which limits accessibility
-to an elite set of well-funded groups.
+the analyses that can be performed. The financial and 
+environmental~\citep{grealey2022carbon,lannelongue2023greener} cost of working
+with such datasets is also substantial.
 
 [Summary of what we do and paper roadmap]
 
@@ -360,13 +359,10 @@ computing by getting an X-fold speedup on a GPU.
 
 \begin{figure}
     \begin{tabular}{c}
-    % The source for this figure is a google drawing
-% Currently using
-% https://docs.google.com/drawings/d/1NheB6LCvvkB4C0nAoSFwoYVZ3mtOPaseGmg_mZvcQ8I
-% See https://github.com/pystatgen/sgkit-publication/issues/21 for
-% discussion
-\includegraphics[width=6cm]{diagrams/sgkit_xarray_diagram.pdf} \\
-\includegraphics[width=6cm]{figures/data-scaling}
+% FIXME temporarily copying this in here until Tim's tikz code arrives.
+% https://github.com/pystatgen/sgkit-publication/issues/46
+\includegraphics[width=7cm]{diagrams/tmp-illustration.png} \\
+\includegraphics[width=7cm]{figures/data-scaling}
 \end{tabular}
 \caption{Chunked compressed storage of the genotype matrix using Zarr.
 (A) Schematic of the chunked array storage used in sgkit
@@ -1031,6 +1027,11 @@ it directly, only VCF (supports BCF by pipeing through bcftools).
 \section{Declarations}
 
 \subsection{List of abbreviations}
+% If abbreviations are used in the text they should be defined in the text at
+% first use, and a list of abbreviations should be provided in alphabetical
+% order.
+
+VCF: Variant Call Format;
 
 \subsection{Competing Interests}
 
