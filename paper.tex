@@ -356,6 +356,110 @@ computing by getting an X-fold speedup on a GPU.
 
 
 \subsection{Storing genetic variation data}
+Storage is the foundation on which any large-scale data-driven computation
+rests: how we encode and organise data on persistent storage (the format)
+fundamentally affects and limits the efficiencies of downstream calculations.
+Different formats are optimised for different purposes, and there are 
+often many competing requirements when designing a data storage format.
+% TODO is there some literature we could cite on this? I'm making up the 
+% term "computational format" here, presumably there is lots  prior thought
+% on these ideas?
+For our  purposes here, it is important to distinguish between \emph{archival} 
+and \emph{computational} formats. An archival format is optimised for 
+maximum interoperability and future-proofing, and uses the simplest and 
+most robust technologies to ensure the long-term usability of the data.
+Reasonable compression levels are important because 
+of storage and transfer costs, but the efficiency of data access is a 
+secondary concern. 
+A computational format, on the other hand, is optimised 
+for calculations, for \emph{using} the data, today. A computational format 
+is designed with particular data access patterns in mind, ultimately
+to make a broad range of queries and downstream computations as efficient as 
+possible.
+
+% Note: a quick explanation of VCF for CS people coming in fresh
+VCF~\citep{danecek2011variant} is a text-based format in which each line 
+describes observations 
+and metadata for a single variant (a position on the genome at which
+variation occurs in the sample). The first eight tab-delimited 
+columns are mandatory, and subsequent columns describe the per-sample 
+genotype calls and quality control data.
+
+[WIP: currently working on weaving together the stuff below into
+some sort of narrative]
+
+As has been noted many times~\citep[e.g.][]{kelleher2013processing,layer2016efficient,li2016bgt},
+
+The shortcomings of VCF (and to a lesser degree, BCF) as a storage
+format and the basis of efficient computation have long been
+recognised 
+and many alternatives
+have been proposed.
+
+Purely archival formats try to get the maximum possible compression levels,
+without much attention to query performance. Typically these use
+highly specialised approaches to maximise compression performance
+on genotype data.
+
+These include:
+TGC~\citep{deorowicz2013genome}
+GTShark~\citep{deorowicz2019gtshark},
+VCFShark~\citep{deorowicz2021vcfshark}.
+
+SpVCF~\citep{lin2020sparse} is an extension of the VCF text
+format that maximises compatibility, while gaining substantial
+improvements in file sizes.
+
+Many tools focus on balancing compression performance with
+being able to run queries, typically outputting a VCF.
+e.g.
+BGT~\citep{li2016bgt},
+GQT~\citep{layer2016efficient},
+SAVVY~\citep{lefaive2021sparse},
+XSI~\citep{wertenbroek2022xsi},
+GTC~\citep{danek2018gtc},
+GTRAC~\citep{tatwawadi2016gtrac}
+genozip~\citep{lan2020genozip,lan2021genozip}
+GBC~\citep{zhang2023gbc}.
+
+SeqArray~\citep{zheng2017seqarray} and the GDS format~\citep{zheng2012high}
+provide efficient storage and programmatic access in R.
+
+
+Many recent tools are based on the Positional Burrows--Wheeler
+Transform (PBWT)~\citep{durbin2014efficient}, which takes advantage
+of the underlying haplotype structure of genomic data to provide
+concise storage, and efficient haplotype matching.
+
+The approach taken by \toolname{plink}~\citep{purcell2007plink,chang2015second} is to
+store data in an uncompressed binary format. This has some major
+advantages.
+
+BGEN \citep{band2018bgen} is optimised for storing large-scale
+genotype array data and stores probabilities, and is used
+in particular by UK Biobank~\citep{bycroft2018genome}
+[Should consider the "hard-call" nature of most of these formats]
+
+Many methods working with large scale genetic
+data now use the PBWT or variants of
+it~\citep[e.g.][]{li2016bgt,lefaive2021sparse,wertenbroek2022xsi}. PBWTs have
+disadvantages, however: data must be phased, and compression level
+is quite sensitive to the presence of errors [citation? people have
+worked around this]
+
+Several tools provide querying interfaces in their CLIs
+(reminiscent of SQL) to provide easy access to particular samples, or
+variants~\cite{li2016bgt,layer2016efficient}.
+
+More recently XSI~\citep{wertenbroek2022xsi} is an file format that
+uses a combination of strategies to achieve excellent compression
+performance, and can support some calculations directly on the
+compressed format. It provides a command line interface and a
+C API.
+
+The SAV format is an extension of BCF that takes advantage
+of the sparseness of large scale genomic datasets~\citep{lefaive2021sparse}.
+They provide a command line interface and a C++ API.
 
 \begin{figure}
     \begin{tabular}{c}
@@ -366,9 +470,6 @@ computing by getting an X-fold speedup on a GPU.
 \end{tabular}
 \caption{Chunked compressed storage of the genotype matrix using Zarr.
 (A) Schematic of the chunked array storage used in sgkit
-[Note: wrong fig. See
-\url{https://github.com/pystatgen/sgkit-publication/issues/46} for
-proposed update].
 (B) Compression performance compared with BCF, savvy and genozip
 based on simulated data (see text for details).
 \label{fig-data-storage}}
@@ -1438,76 +1539,6 @@ GPUs are cool, we support them.
 
 
 \subsection{Storing genetic variation data}
-The shortcomings of VCF (and to a lesser degree, BCF) as a storage
-format and the basis of efficient computation have long been
-recognised \citep[e.g.][]{kelleher2013processing,layer2016efficient,li2016bgt},
-and many alternatives
-have been proposed.
-
-Purely archival formats try to get the maximum possible compression levels,
-without much attention to query performance. Typically these use
-highly specialised approaches to maximise compression performance
-on genotype data.
-
-These include:
-TGC~\citep{deorowicz2013genome}
-GTShark~\citep{deorowicz2019gtshark},
-VCFShark~\citep{deorowicz2021vcfshark}.
-
-SpVCF~\citep{lin2020sparse} is an extension of the VCF text
-format that maximises compatibility, while gaining substantial
-improvements in file sizes.
-
-Many tools focus on balancing compression performance with
-being able to run queries, typically outputting a VCF.
-e.g.
-BGT~\citep{li2016bgt},
-GQT~\citep{layer2016efficient},
-SAVVY~\citep{lefaive2021sparse},
-XSI~\citep{wertenbroek2022xsi},
-GTC~\citep{danek2018gtc},
-GTRAC~\citep{tatwawadi2016gtrac}
-genozip~\citep{lan2020genozip,lan2021genozip}
-GBC~\citep{zhang2023gbc}.
-
-SeqArray~\citep{zheng2017seqarray} and the GDS format~\citep{zheng2012high}
-provide efficient storage and programmatic access in R.
-
-
-Many recent tools are based on the Positional Burrows--Wheeler
-Transform (PBWT)~\citep{durbin2014efficient}, which takes advantage
-of the underlying haplotype structure of genomic data to provide
-concise storage, and efficient haplotype matching.
-
-The approach taken by \toolname{plink}~\citep{purcell2007plink,chang2015second} is to
-store data in an uncompressed binary format. This has some major
-advantages.
-
-BGEN \citep{band2018bgen} is optimised for storing large-scale
-genotype array data and stores probabilities, and is used
-in particular by UK Biobank~\citep{bycroft2018genome}
-[Should consider the "hard-call" nature of most of these formats]
-
-Many methods working with large scale genetic
-data now use the PBWT or variants of
-it~\citep[e.g.][]{li2016bgt,lefaive2021sparse,wertenbroek2022xsi}. PBWTs have
-disadvantages, however: data must be phased, and compression level
-is quite sensitive to the presence of errors [citation? people have
-worked around this]
-
-Several tools provide querying interfaces in their CLIs
-(reminiscent of SQL) to provide easy access to particular samples, or
-variants~\cite{li2016bgt,layer2016efficient}.
-
-More recently XSI~\citep{wertenbroek2022xsi} is an file format that
-uses a combination of strategies to achieve excellent compression
-performance, and can support some calculations directly on the
-compressed format. It provides a command line interface and a
-C API.
-
-The SAV format is an extension of BCF that takes advantage
-of the sparseness of large scale genomic datasets~\citep{lefaive2021sparse}.
-They provide a command line interface and a C++ API.
 
 It is important to note that the example in Fig.~\ref{fig-data-storage}
 is something of a best-base
