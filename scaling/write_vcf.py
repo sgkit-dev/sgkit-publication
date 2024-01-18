@@ -1,10 +1,10 @@
 # Experimental sequential multithreaded version of VCF to sgkit zarr
 # conversion. Currently quite minimal, but could use the more general
 # infrastructure in sgkit (i.e. for detecting fields, etc) to expand.
-
 import concurrent.futures
-import time
 import dataclasses
+import subprocess
+import time
 from typing import Any
 
 import click
@@ -19,7 +19,23 @@ import queue
 numcodecs.blosc.use_threads = False
 
 
+def count_variants(path):
+    try:
+        # This seems to be the only way to find this out. I don't know how
+        # specific it is to bcftools and the CSI index etc. I wonder if we
+        # could add the functionality to cyvcf2?
+        out = subprocess.run(
+            ["bcftools", "index", "-n", path], check=True, capture_output=True
+        )
+    except Exception as e:
+        print("Warning: could not use bcftools to count variants: ", e)
+        return None
+    return int(out.stdout)
+
+
 # based on https://gist.github.com/everilae/9697228
+# Needs refactoring to allow for graceful handing of
+# errors in the main thread, and in the decode thread.
 class ThreadedGenerator:
     def __init__(self, iterator, queue_maxsize=0, daemon=False):
         self._iterator = iterator
@@ -62,7 +78,6 @@ def flush_array(executor, np_buffer, zarr_array):
         futures = flush_1d_array(executor, np_buffer, zarr_array)
     else:
         futures = flush_2d_array(executor, np_buffer, zarr_array)
-    print(zarr_array)
     return futures
 
 
@@ -98,7 +113,10 @@ class BufferedArray:
     zarr_array: Any
 
 
-def convert_vcf(vcf, zarr_store):
+def convert_vcf(vcf_path, zarr_store):
+    vcf = cyvcf2.VCF(vcf_path)
+    num_variants = count_variants(vcf_path)
+
     chunk_length = 2000
     chunk_width = 10000
 
@@ -156,14 +174,13 @@ def convert_vcf(vcf, zarr_store):
             ba.np_buffer = np.zeros_like(ba.np_buffer)
         return futures
 
-    j = 0
-    chunks = 0
-    futures = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        # 1M file
-        progressbar = tqdm.tqdm(total=7254858, desc="VCF rows")
-        # 10 file
-        # progressbar = tqdm.tqdm(total=116230, desc="VCF rows")
+    progressbar = tqdm.tqdm(total=num_variants, desc="variants")
+    # Flushing out the chunks takes less time than reading in here in the
+    # main thread, so no real point in using lots of threads.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+        j = 0
+        chunks = 0
+        futures = []
         # TODO this is the wrong approach here, we need to keep
         # access to the decode thread so that we can kill it
         # appropriately when an error occurs.
@@ -185,14 +202,17 @@ def convert_vcf(vcf, zarr_store):
             ba.np_buffer = ba.np_buffer[:j]
         flush_buffers(futures)
 
+    progressbar.close()
+
 
 @click.command
 @click.argument("in_path", type=click.Path())
 @click.argument("out_path", type=click.Path())
 def main(in_path, out_path):
+    # TODO add a try-except here for KeyboardInterrupt which will kill
+    # the reader thread, and clean up.
     store = zarr.DirectoryStore(out_path)
-    vcf = cyvcf2.VCF(in_path)
-    convert_vcf(vcf, store)
+    convert_vcf(in_path, store)
 
 
 if __name__ == "__main__":
