@@ -5,6 +5,7 @@ import concurrent.futures
 import dataclasses
 import subprocess
 import time
+import functools
 from typing import Any
 
 import click
@@ -62,40 +63,36 @@ class ThreadedGenerator:
         self._thread.join()
 
 
-def flush_array(executor, np_buffer, zarr_array):
+def flush_array(executor, np_buffer, zarr_array, offset):
     """
     Flush the specified chunk aligned buffer to the specified zarr array.
     """
     assert zarr_array.shape[1:] == np_buffer.shape[1:]
 
-    old_len = zarr_array.shape[0]
-    buff_len = np_buffer.shape[0]
-    new_len = old_len + buff_len
-    new_shape = tuple([new_len] + list(np_buffer.shape[1:]))
-    zarr_array.resize(new_shape)
-
     if len(np_buffer.shape) == 1:
-        futures = flush_1d_array(executor, np_buffer, zarr_array)
+        futures = flush_1d_array(executor, np_buffer, zarr_array, offset)
     else:
-        futures = flush_2d_array(executor, np_buffer, zarr_array)
+        futures = flush_2d_array(executor, np_buffer, zarr_array, offset)
     return futures
 
 
-def flush_1d_array(executor, np_buffer, zarr_array):
+def flush_1d_array(executor, np_buffer, zarr_array, offset):
     def flush_chunk():
-        zarr_array[-np_buffer.shape[0] :] = np_buffer
+        zarr_array[offset : offset + np_buffer.shape[0]] = np_buffer
 
     return [executor.submit(flush_chunk)]
 
 
-def flush_2d_array(executor, np_buffer, zarr_array):
+def flush_2d_array(executor, np_buffer, zarr_array, offset):
     # Flush each of the chunks in the second dimension separately
-    chunk_width = zarr_array.chunks[1]
-    zarr_array_width = zarr_array.shape[1]
+
+    s = slice(offset, offset + np_buffer.shape[0])
 
     def flush_chunk(start, stop):
-        zarr_array[-np_buffer.shape[0] :, start:stop] = np_buffer[:, start:stop]
+        zarr_array[s, start:stop] = np_buffer[:, start:stop]
 
+    chunk_width = zarr_array.chunks[1]
+    zarr_array_width = zarr_array.shape[1]
     start = 0
     futures = []
     while start < zarr_array_width:
@@ -113,39 +110,19 @@ class BufferedArray:
     zarr_array: Any
 
 
-def convert_vcf(vcf_path, zarr_store):
-    vcf = cyvcf2.VCF(vcf_path)
-    num_variants = count_variants(vcf_path)
+def write_partition(vcf_fields, zarr_path, partition):
+    vcf = cyvcf2.VCF(partition.path)
+    num_variants = count_variants(partition.path)
 
-    chunk_length = 2000
-    chunk_width = 10000
+    store = zarr.DirectoryStore(zarr_path)
+    root = zarr.group(store=store)
+    pos_array = root["variant_position"]
+    gt_array = root["call_genotype"]
+    gt_phased_array = root["call_genotype_phased"]
 
-    n = len(vcf.samples)
-    root = zarr.group(store=zarr_store, overwrite=True)
-    compressor = numcodecs.Blosc(
-        cname="zstd", clevel=7, shuffle=numcodecs.Blosc.AUTOSHUFFLE
-    )
-    pos_array = root.empty(
-        "variant_position",
-        shape=(0),
-        chunks=(chunk_length),
-        dtype=np.int32,
-        compressor=compressor,
-    )
-    gt_array = root.empty(
-        "call_genotype",
-        shape=(0, n, 2),
-        chunks=(chunk_length, chunk_width),
-        dtype=np.int8,
-        compressor=compressor,
-    )
-    gt_phased_array = root.empty(
-        "call_genotype_phased",
-        shape=(0, n),
-        chunks=(chunk_length, chunk_width),
-        dtype=bool,
-        compressor=compressor,
-    )
+    chunk_length = gt_array.chunks[0]
+    chunk_width = gt_array.chunks[1]
+    n = gt_array.shape[1]
 
     # TODO generalise this so we're allocating the buffer and the array
     # at the same time.
@@ -159,34 +136,44 @@ def convert_vcf(vcf_path, zarr_store):
         BufferedArray(gt_phased_buffer, gt_phased_array),
     ]
 
-    def flush_buffers(futures):
+    def flush_buffers(offset, futures, start=0, stop=chunk_length):
         # Make sure previous futures have completed
         for future in concurrent.futures.as_completed(futures):
             exception = future.exception()
             if exception is not None:
                 raise exception
+
         futures = []
         for ba in buffered_arrays:
-            futures.extend(flush_array(executor, ba.np_buffer, ba.zarr_array))
+            futures.extend(
+                flush_array(executor, ba.np_buffer[start:stop], ba.zarr_array, offset)
+            )
             # This is important - we need to allocate a new buffer so that the
             # we can be writing to this one while the old one is being flushed
             # in the background.
             ba.np_buffer = np.zeros_like(ba.np_buffer)
+
         return futures
 
     progressbar = tqdm.tqdm(total=num_variants, desc="variants")
     # Flushing out the chunks takes less time than reading in here in the
     # main thread, so no real point in using lots of threads.
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        j = 0
-        chunks = 0
+        offset = partition.offset
+        j = offset % chunk_length
+        chunk_start = j
         futures = []
+
         # TODO this is the wrong approach here, we need to keep
         # access to the decode thread so that we can kill it
         # appropriately when an error occurs.
-        for variant in ThreadedGenerator(vcf, queue_maxsize=200):
+        # for variant in ThreadedGenerator(vcf, queue_maxsize=200):
+        for variant in vcf:
             progressbar.update()
-            # Translate write this record into numpy buffers.
+
+            # Translate this record into numpy buffers. There is some compute
+            # done here, but it's not releasing the GIL, so may not be worth
+            # moving to threads.
             pos_buffer[j] = variant.POS
             gt = variant.genotype.array()
             assert gt.shape[1] == 3
@@ -195,24 +182,113 @@ def convert_vcf(vcf_path, zarr_store):
 
             j += 1
             if j == chunk_length:
-                futures = flush_buffers(futures)
+                futures = flush_buffers(offset, futures, start=chunk_start)
                 j = 0
+
+                offset += chunk_length - chunk_start
+                chunk_start = 0
+                assert offset % chunk_length == 0
+
         # Flush the last chunk
-        for ba in buffered_arrays:
-            ba.np_buffer = ba.np_buffer[:j]
-        flush_buffers(futures)
+        flush_buffers(offset, futures, stop=j)
 
     progressbar.close()
 
 
+@dataclasses.dataclass
+class VcfChunk:
+    path: str
+    num_records: int
+    first_position: int
+    offset: int = 0
+
+
+@dataclasses.dataclass
+class VcfFields:
+    samples: list
+    # TODO other stuff like sgkit does
+
+
+def scan_vcfs(paths):
+    chunks = []
+    vcf_fields = None
+    for path in paths:
+        vcf = cyvcf2.VCF(path)
+        fields = VcfFields(samples=vcf.samples)
+        if vcf_fields is None:
+            vcf_fields = fields
+        else:
+            if fields != vcf_fields:
+                raise ValueError("Incompatible VCF chunks")
+        record = next(vcf)
+        chunks.append(
+            VcfChunk(
+                path=path, num_records=count_variants(path), first_position=record.POS
+            )
+        )
+
+    # Assuming these are all on the same contig for now.
+    chunks.sort(key=lambda x: x.first_position)
+    offset = 0
+    for chunk in chunks:
+        chunk.offset = offset
+        offset += chunk.num_records
+    return vcf_fields, chunks
+
+
+def create_zarr(path, vcf_fields, partitions):
+    chunk_width = 10000
+    chunk_length = 2001
+
+    n = len(vcf_fields.samples)
+    m = sum(partition.num_records for partition in partitions)
+
+    store = zarr.DirectoryStore(path)
+    root = zarr.group(store=store, overwrite=True)
+    compressor = numcodecs.Blosc(
+        cname="zstd", clevel=7, shuffle=numcodecs.Blosc.AUTOSHUFFLE
+    )
+    pos_array = root.empty(
+        "variant_position",
+        shape=(m),
+        chunks=(chunk_length),
+        dtype=np.int32,
+        compressor=compressor,
+    )
+    gt_array = root.empty(
+        "call_genotype",
+        shape=(m, n, 2),
+        chunks=(chunk_length, chunk_width),
+        dtype=np.int8,
+        compressor=compressor,
+    )
+    gt_phased_array = root.empty(
+        "call_genotype_phased",
+        shape=(m, n),
+        chunks=(chunk_length, chunk_width),
+        dtype=bool,
+        compressor=compressor,
+    )
+
+
 @click.command
-@click.argument("in_path", type=click.Path())
+@click.argument("vcfs", nargs=-1, required=True)
 @click.argument("out_path", type=click.Path())
-def main(in_path, out_path):
+def main(vcfs, out_path):
     # TODO add a try-except here for KeyboardInterrupt which will kill
-    # the reader thread, and clean up.
-    store = zarr.DirectoryStore(out_path)
-    convert_vcf(in_path, store)
+    # various things and clean-up.
+    vcf_fields, partitions = scan_vcfs(vcfs)
+    # TODO write the Zarr to a temporary name, only renaming at the end
+    # on success.
+    create_zarr(out_path, vcf_fields, partitions)
+
+    f = functools.partial(write_partition, vcf_fields, out_path)
+
+    with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+        # Ensure we don't write collide on writing the first and last
+        # chunks of partitions by doing odd and even partitions separately.
+        executor.map(f, partitions[::2])
+        executor.map(f, partitions[1::2])
 
 
 if __name__ == "__main__":
