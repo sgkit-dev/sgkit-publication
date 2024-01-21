@@ -6,7 +6,10 @@ import dataclasses
 import subprocess
 import time
 import functools
+import multiprocessing
+import os
 from typing import Any
+import time
 
 import click
 import numpy as np
@@ -111,6 +114,7 @@ class BufferedArray:
 
 
 def write_partition(vcf_fields, zarr_path, partition):
+    # print(f"process {os.getpid()} starting")
     vcf = cyvcf2.VCF(partition.path)
     num_variants = count_variants(partition.path)
 
@@ -155,7 +159,7 @@ def write_partition(vcf_fields, zarr_path, partition):
 
         return futures
 
-    progressbar = tqdm.tqdm(total=num_variants, desc="variants")
+    # progressbar = tqdm.tqdm(total=num_variants, desc="variants")
     # Flushing out the chunks takes less time than reading in here in the
     # main thread, so no real point in using lots of threads.
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
@@ -167,9 +171,14 @@ def write_partition(vcf_fields, zarr_path, partition):
         # TODO this is the wrong approach here, we need to keep
         # access to the decode thread so that we can kill it
         # appropriately when an error occurs.
-        # for variant in ThreadedGenerator(vcf, queue_maxsize=200):
-        for variant in vcf:
-            progressbar.update()
+        for variant in ThreadedGenerator(vcf, queue_maxsize=200):
+            # for variant in vcf:
+            # progressbar.update()
+            # progress_queue.put(1)
+            # print("increment")
+            with progress_counter.get_lock():
+                # TODO reduce IPC here by incrementing less often?
+                progress_counter.value += 1
 
             # Translate this record into numpy buffers. There is some compute
             # done here, but it's not releasing the GIL, so may not be worth
@@ -191,8 +200,7 @@ def write_partition(vcf_fields, zarr_path, partition):
 
         # Flush the last chunk
         flush_buffers(offset, futures, stop=j)
-
-    progressbar.close()
+    # print(f"process {os.getpid()} finishing")
 
 
 @dataclasses.dataclass
@@ -271,6 +279,20 @@ def create_zarr(path, vcf_fields, partitions):
     )
 
 
+def update_bar(progress_counter, num_variants):
+    pbar = tqdm.tqdm(total=num_variants)
+
+    while (total := progress_counter.value) < num_variants:
+        inc = total - pbar.n
+        pbar.update(inc)
+        time.sleep(0.1)
+
+
+def init_workers(counter):
+    global progress_counter
+    progress_counter = counter
+
+
 @click.command
 @click.argument("vcfs", nargs=-1, required=True)
 @click.argument("out_path", type=click.Path())
@@ -281,14 +303,37 @@ def main(vcfs, out_path):
     # TODO write the Zarr to a temporary name, only renaming at the end
     # on success.
     create_zarr(out_path, vcf_fields, partitions)
+    print(partitions)
+
+    total_variants = sum(partition.num_records for partition in partitions)
+    global progress_counter
+    progress_counter = multiprocessing.Value("i", 0)
+
+    # start update progress bar process
+    # daemon= parameter is set to True so this process won't block us upon exit
+    # TODO move to thread, no need for proc
+    bar_process = multiprocessing.Process(
+        target=update_bar, args=(progress_counter, total_variants), name="progress"
+    )  # , daemon=True)
+    bar_process.start()
 
     f = functools.partial(write_partition, vcf_fields, out_path)
 
-    with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
+    # for partition in partitions:
+    #     f(partition)
+
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=8, initializer=init_workers, initargs=(progress_counter,)
+    ) as executor:
         # Ensure we don't write collide on writing the first and last
         # chunks of partitions by doing odd and even partitions separately.
-        executor.map(f, partitions[::2])
-        executor.map(f, partitions[1::2])
+        # executor.map(f, partitions)
+        for parts in [partitions[::2], partitions[1::2]]:
+            futures = [executor.submit(f, part) for part in parts]
+            for future in concurrent.futures.as_completed(futures):
+                exception = future.exception()
+                if exception is not None:
+                    raise exception
 
 
 if __name__ == "__main__":
