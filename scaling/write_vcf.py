@@ -23,20 +23,6 @@ import queue
 numcodecs.blosc.use_threads = False
 
 
-def count_variants(path):
-    try:
-        # This seems to be the only way to find this out. I don't know how
-        # specific it is to bcftools and the CSI index etc. I wonder if we
-        # could add the functionality to cyvcf2?
-        out = subprocess.run(
-            ["bcftools", "index", "-n", path], check=True, capture_output=True
-        )
-    except Exception as e:
-        print("Warning: could not use bcftools to count variants: ", e)
-        return None
-    return int(out.stdout)
-
-
 # based on https://gist.github.com/everilae/9697228
 # Needs refactoring to allow for graceful handing of
 # errors in the main thread, and in the decode thread.
@@ -116,7 +102,8 @@ class BufferedArray:
 def write_partition(vcf_fields, zarr_path, partition):
     # print(f"process {os.getpid()} starting")
     vcf = cyvcf2.VCF(partition.path)
-    num_variants = count_variants(partition.path)
+    # Requires cyvcf2>=0.30.27
+    num_variants = vcf.num_records
 
     store = zarr.DirectoryStore(zarr_path)
     root = zarr.group(store=store)
@@ -172,14 +159,6 @@ def write_partition(vcf_fields, zarr_path, partition):
         # access to the decode thread so that we can kill it
         # appropriately when an error occurs.
         for variant in ThreadedGenerator(vcf, queue_maxsize=200):
-            # for variant in vcf:
-            # progressbar.update()
-            # progress_queue.put(1)
-            # print("increment")
-            with progress_counter.get_lock():
-                # TODO reduce IPC here by incrementing less often?
-                progress_counter.value += 1
-
             # Translate this record into numpy buffers. There is some compute
             # done here, but it's not releasing the GIL, so may not be worth
             # moving to threads.
@@ -197,6 +176,11 @@ def write_partition(vcf_fields, zarr_path, partition):
                 offset += chunk_length - chunk_start
                 chunk_start = 0
                 assert offset % chunk_length == 0
+
+            with progress_counter.get_lock():
+                # TODO reduce IPC here by incrementing less often?
+                # Might not be worth the hassle
+                progress_counter.value += 1
 
         # Flush the last chunk
         flush_buffers(offset, futures, stop=j)
@@ -220,7 +204,7 @@ class VcfFields:
 def scan_vcfs(paths):
     chunks = []
     vcf_fields = None
-    for path in paths:
+    for path in tqdm.tqdm(paths, desc="Scan"):
         vcf = cyvcf2.VCF(path)
         fields = VcfFields(samples=vcf.samples)
         if vcf_fields is None:
@@ -246,7 +230,7 @@ def scan_vcfs(paths):
 
 def create_zarr(path, vcf_fields, partitions):
     chunk_width = 10000
-    chunk_length = 2001
+    chunk_length = 2000
 
     n = len(vcf_fields.samples)
     m = sum(partition.num_records for partition in partitions)
@@ -303,7 +287,6 @@ def main(vcfs, out_path):
     # TODO write the Zarr to a temporary name, only renaming at the end
     # on success.
     create_zarr(out_path, vcf_fields, partitions)
-    print(partitions)
 
     total_variants = sum(partition.num_records for partition in partitions)
     global progress_counter
@@ -327,13 +310,20 @@ def main(vcfs, out_path):
     ) as executor:
         # Ensure we don't write collide on writing the first and last
         # chunks of partitions by doing odd and even partitions separately.
-        # executor.map(f, partitions)
+
+        # NOTE: this isn't a great way to do it because we tend to get gluts of
+        # flushes happening at the same time. We should submit the
+        # first half with slight delays, so that procs are working at offsets.
+        # Waiting for all the evens to complete before starting the first odd
+        # does also lead to a noticable drop in throughput halfway through.
         for parts in [partitions[::2], partitions[1::2]]:
             futures = [executor.submit(f, part) for part in parts]
             for future in concurrent.futures.as_completed(futures):
                 exception = future.exception()
                 if exception is not None:
                     raise exception
+
+    assert process_counter.value == total_variants
 
 
 if __name__ == "__main__":
