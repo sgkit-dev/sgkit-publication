@@ -1,0 +1,192 @@
+% TODO: simplify this code
+% flexible cuboid from
+% https://tex.stackexchange.com/questions/267982/tikz-easy-drawing-of-cuboids
+\makeatletter
+\def\tikz@lib@cuboid@get#1{\pgfkeysvalueof{/tikz/cuboid/#1}}
+\def\tikz@lib@cuboid@setup{%
+	\pgfmathsetlengthmacro{\vxx}%
+	{\tikz@lib@cuboid@get{xscale}*cos(\tikz@lib@cuboid@get{xangle})*1cm}
+	\pgfmathsetlengthmacro{\vxy}%
+	{\tikz@lib@cuboid@get{xscale}*sin(\tikz@lib@cuboid@get{xangle})*1cm}
+	\pgfmathsetlengthmacro{\vyx}%
+	{\tikz@lib@cuboid@get{yscale}*cos(\tikz@lib@cuboid@get{yangle})*1cm}
+	\pgfmathsetlengthmacro{\vyy}%
+	{\tikz@lib@cuboid@get{yscale}*sin(\tikz@lib@cuboid@get{yangle})*1cm}
+	\pgfmathsetlengthmacro{\vzx}%
+	{\tikz@lib@cuboid@get{zscale}*cos(\tikz@lib@cuboid@get{zangle})*1cm}
+	\pgfmathsetlengthmacro{\vzy}%
+	{\tikz@lib@cuboid@get{zscale}*sin(\tikz@lib@cuboid@get{zangle})*1cm}
+}
+
+\def\tikz@lib@cuboid@draw#1--#2--#3\pgf@stop{%
+	\begin{scope}[join=bevel,x={(\vxx,\vxy)},y={(\vyx,\vyy)},z={(\vzx,\vzy)}]
+		% first fill the faces with global and individual style
+		% then draw the grids
+		\begin{scope}[canvas is yz plane at x=#1]
+			\draw[cuboid/all faces,cuboid/edges,cuboid/right face] 
+			(0,0) -- ++(#2,0) -- ++(0,-#3) -- ++(-#2,0) -- cycle;
+			\draw[cuboid/all grids,cuboid/right grid] (0,0) grid (#2,-#3);
+		\end{scope}
+		\begin{scope}[canvas is xy plane at z=0]
+			\draw[cuboid/all faces,cuboid/edges,cuboid/front face] 
+			(0,0) -- ++(#1,0) --  ++(0,#2) -- ++(-#1,0) -- cycle;
+			\draw[cuboid/all grids,cuboid/front grid] (0,0) grid (#1,#2);
+		\end{scope}
+		\begin{scope}[canvas is xz plane at y=#2]
+			\draw[cuboid/all faces,cuboid/edges,cuboid/top face] 
+			(0,0) -- ++(#1,0) --  ++(0,-#3) -- ++(-#1,0) -- cycle;
+			\draw[cuboid/all grids,cuboid/top grid] (0,0) grid (#1,-#3);
+		\end{scope}
+		% now, draw the hidden edges
+		\draw[cuboid/hidden edges] (0,#2,-#3) -- (0,0,-#3) -- (0,0,0) 
+		(0,0,-#3) -- ++(#1,0,0);
+		% finally, draw the visible edges 
+		\begin{scope}[canvas is yz plane at x=#1]
+			\draw[cuboid/all faces,cuboid/right face,cuboid/edges,fill opacity=0] 
+			(0,0) -- ++(#2,0) -- ++(0,-#3) -- ++(-#2,0) -- cycle;
+		\end{scope}
+		\begin{scope}[canvas is xy plane at z=0]
+			\draw[cuboid/all faces,cuboid/front face,cuboid/edges,fill opacity=0] 
+			(0,0) -- ++(#1,0) --  ++(0,#2) -- ++(-#1,0) -- cycle;
+		\end{scope}
+		\begin{scope}[canvas is xz plane at y=#2]
+			\draw[cuboid/all faces,cuboid/top face,cuboid/edges,fill opacity=0] 
+			(0,0) -- ++(#1,0) --  ++(0,-#3) -- ++(-#1,0) -- cycle;
+		\end{scope}
+		% define the anchors: 8 vertices
+		\path (0,#2,0) coordinate (-left top front)
+		coordinate (-left front top)
+		coordinate (-top left front)
+		coordinate (-top front left)
+		coordinate (-front top left)
+		coordinate (-front left top);
+		\path (0,#2,-#3) coordinate (-left top rear)
+		coordinate (-left rear top)
+		coordinate (-top left rear)
+		coordinate (-top rear left)
+		coordinate (-rear top left)
+		coordinate (-rear left top);
+		\path (0,0,-#3) coordinate (-left bottom rear)
+		coordinate (-left rear bottom)
+		coordinate (-bottom left rear)
+		coordinate (-bottom rear left)
+		coordinate (-rear bottom left)
+		coordinate (-rear left bottom);
+		\path (0,0,0) coordinate (-left bottom front)
+		coordinate (-left front bottom)
+		coordinate (-bottom left front)
+		coordinate (-bottom front left)
+		coordinate (-front bottom left)
+		coordinate (-front left bottom);
+		\path (#1,#2,0) coordinate (-right top front)
+		coordinate (-right front top)
+		coordinate (-top right front)
+		coordinate (-top front right)
+		coordinate (-front top right)
+		coordinate (-front right top);
+		\path (#1,#2,-#3) coordinate (-right top rear)
+		coordinate (-right rear top)
+		coordinate (-top right rear)
+		coordinate (-top rear right)
+		coordinate (-rear top right)
+		coordinate (-rear right top);
+		\path (#1,0,-#3) coordinate (-right bottom rear)
+		coordinate (-right rear bottom)
+		coordinate (-bottom right rear)
+		coordinate (-bottom rear right)
+		coordinate (-rear bottom right)
+		coordinate (-rear right bottom);
+		\path (#1,0,0) coordinate (-right bottom front)
+		coordinate (-right front bottom)
+		coordinate (-bottom right front)
+		coordinate (-bottom front right)
+		coordinate (-front bottom right)
+		coordinate (-front right bottom);
+		% centers of the 6 faces
+		\coordinate (-left center) at (0,.5*#2,-.5*#3);
+		\coordinate (-right center) at (#1,.5*#2,-.5*#3);
+		\coordinate (-top center) at (.5*#1,#2,-.5*#3);
+		\coordinate (-bottom center) at (.5*#1,0,-.5*#3);
+		\coordinate (-front center) at (.5*#1,.5*#2,0);
+		\coordinate (-rear center) at (.5*#1,.5*#2,-#3);
+		% center of the cuboid
+		\coordinate (-center) at (.5*#1,.5*#2,-.5*#3);
+		% centers of the 12 edges
+		\path (0,#2,-.5*#3) coordinate (-left top center) 
+		coordinate (-top left center);
+		\path (.5*#1,#2,-#3) coordinate (-top rear center)
+		coordinate (-rear top center);
+		\path (#1,#2,-.5*#3) coordinate (-right top center)
+		coordinate (-top right center);
+		\path (.5*#1,#2,0) coordinate (-top front center)
+		coordinate (-front top center);
+		\path (0,0,-.5*#3) coordinate (-left bottom center) 
+		coordinate (-bottom left center);
+		\path (.5*#1,0,-#3) coordinate (-bottom rear center)
+		coordinate (-rear bottom center);
+		\path (#1,0,-.5*#3) coordinate (-right bottom center)
+		coordinate (-bottom right center);
+		\path (.5*#1,0,0) coordinate (-bottom front center)
+		coordinate (-front bottom center);
+		\path (0,.5*#2,0) coordinate (-left front center) 
+		coordinate (-front left center);
+		\path (0,.5*#2,-#3) coordinate (-left rear center)
+		coordinate (-rear left center);
+		\path (#1,.5*#2,0) coordinate (-right front center)
+		coordinate (-front right center);
+		\path (#1,.5*#2,-#3) coordinate (-right rear center)
+		coordinate (-rear right center);
+	\end{scope}
+}
+
+\tikzset{
+	pics/cuboid/.style = {
+		setup code = \tikz@lib@cuboid@setup,
+		background code = \tikz@lib@cuboid@draw#1\pgf@stop
+	},
+	pics/cuboid/.default={1--1--1},
+	cuboid/.is family,
+	cuboid,
+	all faces/.style={fill=white},
+	all grids/.style={draw=none},
+	front face/.style={},
+	front grid/.style={},
+	right face/.style={},
+	right grid/.style={},
+	top face/.style={},
+	top grid/.style={},
+	edges/.style={},
+	hidden edges/.style={draw=none},
+	xangle/.initial=0,
+	yangle/.initial=90,
+	zangle/.initial=210,
+	xscale/.initial=1,
+	yscale/.initial=1,
+	zscale/.initial=0.5
+}
+
+\newcommand{\tikzcuboidreset}{
+	\tikzset{cuboid,
+		all faces/.style={fill=white},
+		all grids/.style={draw=none},
+		front face/.style={},
+		front grid/.style={},
+		right face/.style={},
+		right grid/.style={},
+		top face/.style={},
+		top grid/.style={},
+		edges/.style={},
+		hidden edges/.style={draw=none},
+		xangle=0,
+		yangle=90,
+		zangle=225,
+		xscale=1,
+		yscale=1,
+		zscale=0.5
+	}
+}
+
+\newcommand{\tikzcuboidset}{\@ifstar\tikzcuboidset@star\tikzcuboidset@nostar} 
+\newcommand{\tikzcuboidset@nostar}[1]{\tikzcuboidreset\tikzset{cuboid,#1}}
+\newcommand{\tikzcuboidset@star}[1]{\tikzset{cuboid,#1}}
+\makeatother

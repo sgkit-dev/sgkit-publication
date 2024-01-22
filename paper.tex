@@ -20,6 +20,12 @@
 \usepackage{minted}
 \usepackage{tcolorbox}
 \usepackage{etoolbox}
+
+% Additional packages for data model figure
+\usepackage{forest}
+\usepackage{tikz}
+\usetikzlibrary{quotes,arrows.meta,3d}
+
 % Local definitions to systematise tool naming
 \newcommand{\sgapi}[1]{\texttt{#1}}
 \newcommand{\toolname}[1]{\texttt{#1}}
@@ -28,6 +34,9 @@
 
 %%% Flushend: You can add this package to automatically balance the final page, but if things go awry (e.g. section contents appearing out-of-order or entire blocks or paragraphs are coloured), remove it!
 % \usepackage{flushend}
+
+% Macros etc for data model figure
+\input{diagrams/data-model-preamble.tex}
 
 \title{Scalable analysis of genetic variation data in Python}
 
@@ -463,9 +472,7 @@ They provide a command line interface and a C++ API.
 
 \begin{figure}
     \begin{tabular}{c}
-% FIXME temporarily copying this in here until Tim's tikz code arrives.
-% https://github.com/pystatgen/sgkit-publication/issues/46
-\includegraphics[width=7cm]{diagrams/tmp-illustration.png} \\
+\resizebox{7cm}{!}{\input{diagrams/data-model.tex}} \\
 \includegraphics[width=7cm]{figures/data-scaling}
 \end{tabular}
 \caption{Chunked compressed storage of the genotype matrix using Zarr.
