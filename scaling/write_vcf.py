@@ -215,7 +215,7 @@ def scan_vcfs(paths):
         record = next(vcf)
         chunks.append(
             VcfChunk(
-                path=path, num_records=count_variants(path), first_position=record.POS
+                path=path, num_records=vcf.num_records, first_position=record.POS
             )
         )
 
@@ -323,7 +323,7 @@ def main(vcfs, out_path):
                 if exception is not None:
                     raise exception
 
-    assert process_counter.value == total_variants
+    assert progress_counter.value == total_variants
 
 
 if __name__ == "__main__":
