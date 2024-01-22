@@ -1,11 +1,11 @@
 # Experimental sequential multithreaded version of VCF to sgkit zarr
 # conversion. Currently quite minimal, but could use the more general
 # infrastructure in sgkit (i.e. for detecting fields, etc) to expand.
+import contextlib
 import concurrent.futures
 import dataclasses
 import subprocess
 import time
-import functools
 import multiprocessing
 import os
 from typing import Any
@@ -52,29 +52,25 @@ class ThreadedGenerator:
         self._thread.join()
 
 
-def flush_array(executor, np_buffer, zarr_array, offset):
+def sync_flush_array(np_buffer, zarr_array, offset):
+    zarr_array[offset : offset + np_buffer.shape[0]] = np_buffer
+
+
+def async_flush_array(executor, np_buffer, zarr_array, offset):
     """
     Flush the specified chunk aligned buffer to the specified zarr array.
     """
     assert zarr_array.shape[1:] == np_buffer.shape[1:]
 
     if len(np_buffer.shape) == 1:
-        futures = flush_1d_array(executor, np_buffer, zarr_array, offset)
+        futures = [executor.submit(sync_flush_array, np_buffer, zarr_array, offset)]
     else:
-        futures = flush_2d_array(executor, np_buffer, zarr_array, offset)
+        futures = async_flush_2d_array(executor, np_buffer, zarr_array, offset)
     return futures
 
 
-def flush_1d_array(executor, np_buffer, zarr_array, offset):
-    def flush_chunk():
-        zarr_array[offset : offset + np_buffer.shape[0]] = np_buffer
-
-    return [executor.submit(flush_chunk)]
-
-
-def flush_2d_array(executor, np_buffer, zarr_array, offset):
+def async_flush_2d_array(executor, np_buffer, zarr_array, offset):
     # Flush each of the chunks in the second dimension separately
-
     s = slice(offset, offset + np_buffer.shape[0])
 
     def flush_chunk(start, stop):
@@ -99,11 +95,14 @@ class BufferedArray:
     zarr_array: Any
 
 
-def write_partition(vcf_fields, zarr_path, partition):
+def write_partition(
+    vcf_fields, zarr_path, partition, *, first_chunk_lock, last_chunk_lock
+):
     # print(f"process {os.getpid()} starting")
     vcf = cyvcf2.VCF(partition.path)
     # Requires cyvcf2>=0.30.27
     num_variants = vcf.num_records
+    offset = partition.offset
 
     store = zarr.DirectoryStore(zarr_path)
     root = zarr.group(store=store)
@@ -127,7 +126,7 @@ def write_partition(vcf_fields, zarr_path, partition):
         BufferedArray(gt_phased_buffer, gt_phased_array),
     ]
 
-    def flush_buffers(offset, futures, start=0, stop=chunk_length):
+    def flush_buffers(futures, start=0, stop=chunk_length):
         # Make sure previous futures have completed
         for future in concurrent.futures.as_completed(futures):
             exception = future.exception()
@@ -135,22 +134,35 @@ def write_partition(vcf_fields, zarr_path, partition):
                 raise exception
 
         futures = []
-        for ba in buffered_arrays:
-            futures.extend(
-                flush_array(executor, ba.np_buffer[start:stop], ba.zarr_array, offset)
-            )
-            # This is important - we need to allocate a new buffer so that the
-            # we can be writing to this one while the old one is being flushed
-            # in the background.
-            ba.np_buffer = np.zeros_like(ba.np_buffer)
+        if start != 0 or stop != chunk_length:
+            with contextlib.ExitStack() as stack:
+                if start != 0:
+                    stack.enter_context(first_chunk_lock)
+                if stop != chunk_length:
+                    stack.enter_context(last_chunk_lock)
+                for ba in buffered_arrays:
+                    # For simplicity here we synchrously flush buffers for these
+                    # non-aligned chunks, rather than try to pass the requisite locks
+                    # to the (common-case) async flush path
+                    sync_flush_array(ba.np_buffer[start:stop], ba.zarr_array, offset)
+                    ba.np_buffer[:] = 0
+        else:
+            for ba in buffered_arrays:
+                futures.extend(
+                    async_flush_array(
+                        executor, ba.np_buffer[start:stop], ba.zarr_array, offset
+                    )
+                )
+                # This is important - we need to allocate a new buffer so that
+                # we can be writing to the new one while the old one is being flushed
+                # in the background.
+                ba.np_buffer = np.zeros_like(ba.np_buffer)
 
         return futures
 
-    # progressbar = tqdm.tqdm(total=num_variants, desc="variants")
     # Flushing out the chunks takes less time than reading in here in the
     # main thread, so no real point in using lots of threads.
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        offset = partition.offset
         j = offset % chunk_length
         chunk_start = j
         futures = []
@@ -170,9 +182,8 @@ def write_partition(vcf_fields, zarr_path, partition):
 
             j += 1
             if j == chunk_length:
-                futures = flush_buffers(offset, futures, start=chunk_start)
+                futures = flush_buffers(futures, start=chunk_start)
                 j = 0
-
                 offset += chunk_length - chunk_start
                 chunk_start = 0
                 assert offset % chunk_length == 0
@@ -183,8 +194,7 @@ def write_partition(vcf_fields, zarr_path, partition):
                 progress_counter.value += 1
 
         # Flush the last chunk
-        flush_buffers(offset, futures, stop=j)
-    # print(f"process {os.getpid()} finishing")
+        flush_buffers(futures, stop=j)
 
 
 @dataclasses.dataclass
@@ -214,9 +224,7 @@ def scan_vcfs(paths):
                 raise ValueError("Incompatible VCF chunks")
         record = next(vcf)
         chunks.append(
-            VcfChunk(
-                path=path, num_records=vcf.num_records, first_position=record.POS
-            )
+            VcfChunk(path=path, num_records=vcf.num_records, first_position=record.POS)
         )
 
     # Assuming these are all on the same contig for now.
@@ -229,8 +237,8 @@ def scan_vcfs(paths):
 
 
 def create_zarr(path, vcf_fields, partitions):
-    chunk_width = 10000
-    chunk_length = 2000
+    chunk_width = 10001
+    chunk_length = 2001
 
     n = len(vcf_fields.samples)
     m = sum(partition.num_records for partition in partitions)
@@ -300,24 +308,23 @@ def main(vcfs, out_path):
     )  # , daemon=True)
     bar_process.start()
 
-    f = functools.partial(write_partition, vcf_fields, out_path)
-
-    # for partition in partitions:
-    #     f(partition)
-
     with concurrent.futures.ProcessPoolExecutor(
-        max_workers=8, initializer=init_workers, initargs=(progress_counter,)
+        max_workers=16, initializer=init_workers, initargs=(progress_counter,)
     ) as executor:
-        # Ensure we don't write collide on writing the first and last
-        # chunks of partitions by doing odd and even partitions separately.
-
-        # NOTE: this isn't a great way to do it because we tend to get gluts of
-        # flushes happening at the same time. We should submit the
-        # first half with slight delays, so that procs are working at offsets.
-        # Waiting for all the evens to complete before starting the first odd
-        # does also lead to a noticable drop in throughput halfway through.
-        for parts in [partitions[::2], partitions[1::2]]:
-            futures = [executor.submit(f, part) for part in parts]
+        with multiprocessing.Manager() as manager:
+            locks = [manager.Lock() for _ in range(len(partitions) + 1)]
+            futures = []
+            for j, part in enumerate(partitions):
+                futures.append(
+                    executor.submit(
+                        write_partition,
+                        vcf_fields,
+                        out_path,
+                        part,
+                        first_chunk_lock=locks[j],
+                        last_chunk_lock=locks[j + 1],
+                    )
+                )
             for future in concurrent.futures.as_completed(futures):
                 exception = future.exception()
                 if exception is not None:
