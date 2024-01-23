@@ -1,6 +1,9 @@
 # Experimental sequential multithreaded version of VCF to sgkit zarr
-# conversion. Currently quite minimal, but could use the more general
-# infrastructure in sgkit (i.e. for detecting fields, etc) to expand.
+# conversion. This is a minimal standalone version, forming the basis
+# of the version in sgkit.
+#
+# This is entirely untested, and only keeping here as a useful reference.
+# DO NOT USE!
 import contextlib
 import concurrent.futures
 import dataclasses
@@ -106,6 +109,7 @@ def write_partition(
 
     store = zarr.DirectoryStore(zarr_path)
     root = zarr.group(store=store)
+    # These are the bare-minimum
     pos_array = root["variant_position"]
     gt_array = root["call_genotype"]
     gt_phased_array = root["call_genotype_phased"]
