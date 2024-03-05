@@ -1,7 +1,8 @@
-# sgkit-publication
+# vcf-zarr-publication
 
-This repo contains the manuscript for the publication describing sgkit,
-along with all code required to generate figures and example analyses.
+This repo contains the manuscript for the publication describing the vcf-zarr 
+specification and its compression and query performance on several datasets.
+All code required to generate figures and example analyses.
 
 ## Contribution
 
