@@ -38,7 +38,8 @@
 % Macros etc for data model figure
 \input{diagrams/data-model-preamble.tex}
 
-\title{Scalable analysis of genetic variation data in Python}
+% tentative
+\title{Columnar VCF using Zarr}
 
 %%% Use the \authfn to add symbols for additional footnotes, if any. 1 is reserved for correspondence emails; then continuing with 2 etc for contributions.
 \author[1,\authfn{1},\authfn{2}]{First Author}
@@ -81,59 +82,36 @@
 % include the following details:
 % \textbf{Background}, the context and purpose of % the study;
 % \textbf{Results}, the main findings;
-% \textbf{Conclusions}, brief summary and potential implications. 
+% \textbf{Conclusions}, brief summary and potential implications.
 
-%% NOTE: this is much too long currently, but keeping for now so we 
+%% NOTE: this is much too long currently, but keeping for now so we
 % can see which stuff migrates to the intro
 \begin{abstract}
 \textbf{Background:}
-Vast quantities of genetic variation data have been collected to 
-address fundamental scientific questions across multiple disciplines.
-Genetic variation datasets are usually modelled as a ``genotype matrix'',
-where rows denote positions on the genome where variation occurs and 
-columns represent the state of sequenced samples at that position.
-The largest dataset available today, the UK Biobank, 
+The largest dataset available today, the UK Biobank,
 has a genotype matrix of approximately 1,000,000,000 rows and 500,000 columns,
 along with metadata and quality control information of similar dimension.
 Processing such matrices on a single computer is not feasible,
 and computations must be distributed to complete in a reasonable timeframe.
-Classical methods in genomics are inherently single-computer focused, 
-oriented around either streaming data through Unix pipelines or 
+Classical methods in genomics are inherently single-computer focused,
+oriented around either streaming data through Unix pipelines or
 storing the entire genotype matrix in memory.
 The standard file format for genetic variation data (VCF: Variant Call Format)
-is also fundamentally unsuited to distributed computation and is a severe 
+is also fundamentally unsuited to distributed computation and is a severe
 bottleneck at the Biobank scale.
-Researchers either perform ad-hoc distribution by splitting across VCF files
-and dispatching jobs using workflow managers, 
-or convert data into the undocumented and/or proprietary formats 
-used by the few specialised tools that do support automatic distribution
-of calculations on a genotype matrix.
 
-\textbf{Results:} We present sgkit, a scalable toolkit for processing genetic 
-variation data built on widely-used technologies from the Python data-science
-ecosystem. A key part of this approach is to use Zarr, a cloud-native
+\textbf{Results:}
+key part of this approach is to use Zarr, a cloud-native
 format for storing multi-dimensional numerical data, widely used in the
-across the sciences to store petabyte-scale datasets, and with 
-multiple implementations.  We show that data stored in this format has 
-comparable compression levels to specialised methods to compress the 
+across the sciences to store petabyte-scale datasets, and with
+multiple implementations.  We show that data stored in this format has
+comparable compression levels to specialised methods to compress the
 genotype matrix. We show that performing calculations on the genotype
-matrix on a single computer is much more efficient at scale using sgkit than standard 
+matrix on a single computer is much more efficient at scale using sgkit than standard
 approaches based on VCF, and is comparable with state-of-the-art methods
-using compiled languages. Moreover, sgkit can also natively distribute
-computation over a cluster using Dask, with no changes required to client code.
-We show what sgkit is competitive with Hail (the most popular package for distributed
-analysis of genetic variation data) in terms of performance, but is 
-much more flexible and extensible. We demonstrate the 
-current capabilities of sgkit to perform dataset quality control,
-and applications in statistical, population, quantitative and phylo genetics.
+using compiled languages.
 
-\textbf{Conclusions:} 
-Sgkit enables the interactive analysis of Biobank-scale genetic variation
-datasets via familiar and powerful Python data science tools, boosting
-researcher productivity. Leveraging these tools also substantially 
-reduces software development effort for creating new methods.
-The vcf-zarr specification may additionally provide a useful starting 
-point for defining a standard computational format for genetic variation data.
+\textbf{Conclusions:}
 Such a standard, based on the language-agnostic Zarr format, would enable a
 diverse ecosystem of tools to efficiently access subsets of the data without
 copying, and substantially reduce research costs.
@@ -154,108 +132,10 @@ Keyword1; keyword 2; keyword 3 (Three to ten keywords representing the main cont
 \end{keypoints*}
 
 \section{Background}
-[TODO rewrite this based on the first paragraph of the abstract above 
-when cutting it down.]
-The study of genetics is currently transforming into a true big-data science.
-Since the Human Genome Project, genomics has required working with
-signicant volumes of data and the specialised methods
-required to transform the raw biological signals into analysable data,
-such as assembly[cite], mapping[cite] and variant calling[cite] are compute intensive.
-However, beyond these initial steps required to generate the data, the actual
-analysis of the genetic variation could typically be performed on a single
-computer, and often with ad-hoc software written using shell utilities
-and scripting languages such as Perl.
-From the Human Genome Project, through 1000 Genomes, and now with
-population scale genomics datasets such as UK Biobank, GeL, etc,
-the requirements for analysing the data have far outgrown these
-methods. Simple queries can require minutes to complete, which
-has a negative effect on researcher productivity, as well as limiting
-the analyses that can be performed. The financial and 
-environmental~\citep{grealey2022carbon,lannelongue2023greener} cost of working
-with such datasets is also substantial.
-
-[Summary of what we do and paper roadmap]
-
-In this paper we present sgkit, a Python library for large-scale genetic data
-analysis that supports efficient and convenient distributed computation based
-on open data formats and established technologies. We begin by examining the
-fundamental question of how we can store observed genotypes for millions of
-samples and hundreds of millions of variant sites in a way that is compact,
-supports efficient retrieval for subsets of both samples and sites, and leads
-to efficient distributed computation. We demonstrate that the straightforward
-approach of storing genotypes in compressed rectangular chunks using the Zarr
-library enables efficient access by sample, and yields compression levels and
-computation speeds similar to specialised methods for genetic data. These
-chunks also provide
-a natural unit % FIXME "unit" is the wrong word
-to parallelise work over, and by using the Dask library sgkit can easily and
-transparently execute tasks concurrently within a single computer or across a
-large cluster. Concurrent and distributed programming is notoriously difficult,
-but Dask's high-level array-oriented operations, coupled with just-in-time
-(JIT) compilation via numba~\citep{lam2015numba}, makes it straightforward to
-write performant distributed code in Python.
-Storing and processing genotype data is of course only one part of
-genetic data analysis, and real-world analyses require large volumes
-of additional data associated with variants, samples and genotypes calls.
-To help manage this complexity
-the basic unit of sgkit's interface is an Xarray
-dataset~\citep{hoyer2017xarray}, which provides a flexible container
-for labelled multi-dimensional arrays. Thus, arbitrary numerical data
-can be associated with any of the relevant dimensions, and stored
-efficiently in chunked Zarr format.
-
-Using these fundamental building blocks sgkit currently provides
-functionality across four key themes of general quality-control,
-statistical, population and quantitative genetics. In
-each case we briefly discuss available software, and showcase
-the functionality via case-studies.
-% Note: wishlist, just writing down some stuff that sounds good!
-% Also four-key themes doesn't quite fit with 5 sections mentioned
-% below - it's a WIP.
-We first demonstrate interactive quality-control of [large dataset]
-on [cluster], demonstrating how users can quickly summarise
-large-scale data in a Jupyter notebook. We then illustrate the
-statistical genetics functionality by performing a GWAS
-on [something]. We showcase support for
-population genetic data by [doing something from one of Alistairs
-notebooks?].
-We then demonstrate support for quantitative genetics
-applications by applying relatedness matrix functions to [something].
-% Note: it would be quite neat if we could say this is support
-% for phylogenetics operations. Coupled with upstream SeqData
-% we might actually be able to do this for some public SARS-CoV-2
-% data or something, and make a neighbour joining tree using
-% scipy (which is a terrible method, so would have to fully
-% acknowledge).
-Finally, demonstrate sgkit's support for heterogenous computing
-and the general potential for using GPUs by computing a
-pairwise distance matrix for [something], and demonstrate
-X-fold speedup using our GPU implementation.
-
-% Maybe this belongs in the discussion - we can leave it here for now.
-Sgkit builds on the four key technologies of Zarr, Dask, Numba and Xarray,
-widely used throughout the sciences, to bring efficient large-scale
-genetics computation within the reach of many.
-Sgkit is by design an open ecosystem.
-The data model is well-documented,
-based on open standards, and extensible to include arbitrary additional
-variables and dimensions. Users are not restricted to a limited palate
-of analyses, but have the full power of the Python data-science stack
-available, and can write their own operations in terms of distributed
-array operations or optimised numerical code. Finally, sgkit's
-development model is open, with a codebase that is specifically
-designed for ease of contribution,
-% This is horrible, put in something better later.
-and development processes informed
-by combined decades of experience in open-source projects.
 
 \section{Results}
 
 \subsection{Overview of narrative for draft}
-This subsection is a high-level summary of the main sections and
-their narrative connections. \textbf{The section is for authors only and
-will be deleted
-once the sections themselves have matured reasonably}
 
 \paragraph{Storing genetic variation data}
 High level discussion of
@@ -299,99 +179,35 @@ intrinsically bad, and that it should be easy to do calculations
 on aribitrary subsets. Also participants regularly drop-out of
 large studies like UKB - do you update the AF values each time?
 
-\paragraph{Distributed computation}
-Why do we need distributed compute? Summary of current
-approaches (chunk up along the genome using HPC or workflow
-managers). Advantages of true distributed compute, MapReduce
-etc. Summary of earlier efforts like ADAM.
-Discuss Hail. It's awesome, has enabled current
-generation of mega-scale projects. Drawbacks are the
-architecture has emphasised performance etc over adaptability
-and simplicity. File format is undocumented, etc.
-Discuss why the sgkit architecture is suited to distributed
-computation. Discuss Zarr's use in cloud stores, and existing
-deployments. Discuss Dask.
-We do not attempt a head-to-head performance comparison with
-Hail here, but defer to Liangde's thesis~\citep{li2022efficient}
-with brief summary.
-Forward ref to following sections on applications to demonstate
-sgkit in a distributed context.
-
-\paragraph{Quality control of large datasets}
-Outline the importance of QC, and existing approaches.
-Summarise sgkit's general QC capabilities.
-We demonstrate sgkit on quality control operations on a large
-real dataset. We convert large messy VCF with lots of additional
-fields. Quote file size numbers. We do some QC operations on
-the dataset, using a good size distributed cluster, using
-some of the additional fields. Quote times. Discuss Xarray
-here, and possibly illustrate the labelled dimensioned arrays
-here via a figure (perhaps a screenshot/pdf conversion of
-a Jupyter notebook rendering of the big messy dataset,
-showing the various fields).
-
-\paragraph{Statistical genetics}
-Quick summary of statgen and existing toolchain.
-Summarise sgkit's statgen capabilities.
-Demonstrate sgkit doing a GWAS on real data using distributed cluster.
-Quote numbers.
-
-\paragraph{Population genetics}
-Quick summary of popgen and existing toolchain.
-Summarise sgkit's popgen capabilities.
-Demonstrate
-sgkit doing popgen analysis based on MalariaGEN data (on cluster?)
-Quote numbers.
-
-\paragraph{Quantitative genetics}
-Quick summary of quantgen and existing toolchain.
-Summarise sgkit's quantgen capabilities. Emphasise the importance
-of mixed ploidy support.
-Demonstrate sgkit doing some relatedness matrix analyses.
-Quote numbers, possibly relative to existing tools.
-
-\paragraph{Phylogenetics}
-Quick summary of phylogenetics and existing toolchain.
-Phylo is not one of sgkit's core capabilities, but there's no
-reason it can't support important. Workflows are also becoming
-VCF-based, and massive datasets like SC2 would definitely
-benefit from the ability to distribute.
-
-We demonstrate the potential by doing computing pairwise
-distance matrix from XX samples, and creating a neighbour
-joining tree using scipy (which we emphasise is a terrible
-idea, but still). We showcase sgkit's support for heterogenous
-computing by getting an X-fold speedup on a GPU.
-
 
 \subsection{Storing genetic variation data}
 Storage is the foundation on which any large-scale data-driven computation
 rests: how we encode and organise data on persistent storage (the format)
 fundamentally affects and limits the efficiencies of downstream calculations.
-Different formats are optimised for different purposes, and there are 
+Different formats are optimised for different purposes, and there are
 often many competing requirements when designing a data storage format.
-% TODO is there some literature we could cite on this? I'm making up the 
+% TODO is there some literature we could cite on this? I'm making up the
 % term "computational format" here, presumably there is lots  prior thought
 % on these ideas?
-For our  purposes here, it is important to distinguish between \emph{archival} 
-and \emph{computational} formats. An archival format is optimised for 
-maximum interoperability and future-proofing, and uses the simplest and 
+For our  purposes here, it is important to distinguish between \emph{archival}
+and \emph{computational} formats. An archival format is optimised for
+maximum interoperability and future-proofing, and uses the simplest and
 most robust technologies to ensure the long-term usability of the data.
-Reasonable compression levels are important because 
-of storage and transfer costs, but the efficiency of data access is a 
-secondary concern. 
-A computational format, on the other hand, is optimised 
-for calculations, for \emph{using} the data, today. A computational format 
+Reasonable compression levels are important because
+of storage and transfer costs, but the efficiency of data access is a
+secondary concern.
+A computational format, on the other hand, is optimised
+for calculations, for \emph{using} the data, today. A computational format
 is designed with particular data access patterns in mind, ultimately
-to make a broad range of queries and downstream computations as efficient as 
+to make a broad range of queries and downstream computations as efficient as
 possible.
 
 % Note: a quick explanation of VCF for CS people coming in fresh
-VCF~\citep{danecek2011variant} is a text-based format in which each line 
-describes observations 
+VCF~\citep{danecek2011variant} is a text-based format in which each line
+describes observations
 and metadata for a single variant (a position on the genome at which
-variation occurs in the sample). The first eight tab-delimited 
-columns are mandatory, and subsequent columns describe the per-sample 
+variation occurs in the sample). The first eight tab-delimited
+columns are mandatory, and subsequent columns describe the per-sample
 genotype calls and quality control data.
 
 [WIP: currently working on weaving together the stuff below into
@@ -401,7 +217,7 @@ As has been noted many times~\citep[e.g.][]{kelleher2013processing,layer2016effi
 
 The shortcomings of VCF (and to a lesser degree, BCF) as a storage
 format and the basis of efficient computation have long been
-recognised 
+recognised
 and many alternatives
 have been proposed.
 
@@ -693,239 +509,6 @@ with brief summary.
 Forward ref to following sections on applications to demonstate
 sgkit in a distributed context.
 
-\subsection{Quality control of large datasets}
-Outline the importance of QC, and existing approaches.
-Summarise sgkit's general QC capabilities.
-We demonstrate sgkit on quality control operations on a large
-real dataset. We convert large messy VCF with lots of additional
-fields. Quote file size numbers. We do some QC operations on
-the dataset, using a good size distributed cluster, using
-some of the additional fields. Quote times. Discuss Xarray
-here, and possibly illustrate the labelled dimensioned arrays
-here via a figure (perhaps a screenshot/pdf conversion of
-a Jupyter notebook rendering of the big messy dataset,
-showing the various fields).
-
-\subsection{Statistical Genetics}
-Statistical genetics is largely concerned with disease associations
-in humans, and the success of genome wide association studies (GWAS) has led
-to explosive growth in the field~\citep{uffelmann2021genome}.
-Sample size is the single most
-important factor in driving statistical power, and
-genotype array data has been collected for millions of samples
-[more explanation and citations].
-GWAS typically use genotype array data because of
-its continuing cost-effectiveness, although there has been
-exome~\citep{lek2016analysis,backman2021exome}
-and large-scale whole genome sequence data is becoming increasingly
-available~\citep{halldorsson2022sequences,uk2023whole}.
-Genotype array data is usually imputed using software such
-as BEAGLE~\citep{browning2018one} or IMPUTE~\citep{howie2011genotype}.
-% Mention phasing?
-
-The \toolname{plink}~\citep{purcell2007plink} package is the most
-commonly used software for GWAS and has a large range of functionality
-required for quality control, association testing and analysis.
-More recently software packages have emerged specifically designed
-to deal with the very large sample sizes that are becoming
-more prevalant, for example SAIGE~\citep{zhou2018efficiently}
-Bolt-LMM~\citep{loh2015efficient}
-and
-REGENIE~\citep{mbatchou2021computationally} are designed to
-detect associations in very large cohorts.
-The Hail software [citation] has been used [to do lots of things]
-[Mention qgg somewhere\citep{rohde2020qgg}]
-
-Because of the relative homogenity of the data sources and
-required tasks, programs like \toolname{plink} are able to provide
-an end-to-end analysis pipline from the source genotype data, quality
-control and associations via Manhattan plots.
-
-\subsection{Population Genetics}
-[Things to work in here:
-1) Classically popgen is concerned with allele frequencies, and so
-used a variety of different data types to access this.
-2) Data was at a pretty small scale, so you could do the entire
-analysis within a single monolithic package like Arlequin.
-3) people have been transitioning to WGS data recently.
-]
-
-Population geneticists study evolution at the population scale,
-characterising the evolutionary forces shaping the diversity
-within and between populations. Compared to statistical genetics,
-which is largely concerned with humans, population geneticists
-study a broad range of organisms across the tree of life, both well
-characterised ``model'' species, and those for which the most basic
-genetic information (such as the sizes and number of chromosomes,
-and ploidy level) must be determined.
-Sample sizes are also much smaller,
-with dozens to a few hundred genomes per species being typical.
-However, projects such as Darwin Tree of
-Life~\citep{darwin2022sequence} are currently sequencing tens of
-thousands of different species.
-
-% JK: I'm making this up - need to get something concrete to back it up.
-% Is there any review paper summarising computation in popgen?
-[THIS IS A ROUGH DRAFT: I'm just getting in a paragraph here with citations
-to tools/packages that are important in PopGen. We can get a narrative
-through it later.]
-See \citep{excoffier2006computer} for a review of computational methods
-in classical population genetics.
-Because of the relatively small volumes of data and the variety
-of different organisms, statistical analysis of population genetic
-data has tended to be done by custom scripts. Tools such
-as \toolname{plink}~\citep{purcell2007plink}
-are often not applicable because of the built-in
-assumptions that are appropriate only for humans and other model organisms.
-Programs such as Arlequin~\citep{excoffier2005arlequin,excoffier2010arlequin}
-contain a large suite of features, but can only be accessed by GUI
-or command line interfaces.
-BioPerl~\citep{stajich2002bioperl} and BioPython~\citep{cock2009biopython}
-are more concerned with alignments and providing access to command-line
-programs, and are oriented towards flexibility rather than
-performance.
-The \toolname{scikit-allel}~\citep{miles2023scikit}
-and \toolname{pylibseq}~\citep{thornton2003libsequence}
-libraries provide efficient programmatic
-access to a rich suite of population genetic statistics, but have limited
-support for parallelisation.
-
-STRUCTURE~\citep{pritchard2000inference}
-ADMIXTOOLS~\citep{patterson2012ancient}
-
-% Discussion of simulated data and tree-based stuff.
-Population geneticists are often interested in comparing with simulated data.
-Until recently, this was done by processing
-custom text formats output by programs such as
-\toolname{ms}~\citep{hudson2002generating} and accompanying
-scripts to compute basic statistics.
-% JK: This is a bit of a self-cite fest here, but I think people would
-% wonder what the connection between sgkit and tskit is if we don't
-% explain it. Happy to discuss if anyone doesn't like it, though.
-The \toolname{msprime}~\citep{kelleher2016efficient} simulator took a
-different approach by providing a Python API which gives
-access to the underlying genealogical trees, which often allow
-statistics to be calculated more efficiently than standard
-matrix-based approaches~\citep{ralph2020efficiently}.
-These methods have been subsequently generalised to
-other forms of
-simulation~\citep{kelleher2018efficient,haller2018tree}
-as well as being inferred from observed variation
-data~\citep{kelleher2019inferring,wohns2022unified},
-supported by the open-source \toolname{tskit}
-library~\citep{ralph2020efficiently}.
-See~\cite{baumdicker2021efficient} for further discussion on
-computation in population genetic simulations, and the
-\texttt{tskit} software ecosystem.
-% Need to say this somewhere, or people will wonder. This is a
-% rough draft
-While tree-based methods are excellent for simulated data
-and attractive for real-data analysis, they are not a solution
-to all problems. Firstly, not all datasets are appropriate
-for tree inference and secondly, before we infer trees we must
-first perform extensive quality control of the raw data, necessarily
-in variant-matrix form.
-
-
-Sgkit provides a number of methods for computing statistics in population
-genetics. All methods work on an Xarray dataset that has a number of well-known
-variables defined [TODO: see section...], which for population genetics are the
-genotype calls, stored in the \sgapi{call\_genotype} variable. The methods return a
-new dataset containing variables that store the computed statistics.
-
-Before running the methods, the dataset is usually divided into windows along
-the genome, using the \sgapi{window\_by} functions, which tell sgkit to produce
-per-window statistics. For example, \sgapi{window\_by\_position} creates windows that
-are a fixed number of base pairs, while \sgapi{window\_by\_interval} creates windows
-corresponding to arbitrary user-defined intervals.
-
-It's common in population genetics to group samples into populations, which in
-sgkit are referred to as \emph{cohorts}. There are two types of statistics: one-way
-statistics where there is a single statistic for each cohort, and multi-way
-statistics where there is a statistic between each pair, triple, etc of
-cohorts. [TODO: do we need to say how cohorts are defined?]
-
-The methods for one-way statistics include \sgapi{diversity} for computing mean
-genetic diversity, \sgapi{Tajimas\_D} for computing Tajima’s D, and
-\sgapi{Garud\_H} for
-computing the H1, H12, H123 and H2/H1 statistics~\citep{garud2015recent}.
-
-The methods for multi-way statistics include \sgapi{divergence} and
-\sgapi{Fst} for
-computing mean genetic divergence and $F_{ST}$ (respectively) between pairs of
-cohorts, and \sgapi{pbs} for computing the population branching statistic between
-cohort triples.
-
-We converted phased Ag1000G hypotype data in Zarr format
-%[@https://www.malariagen.net/data/ag1000g-phase-2-ar1]
-to sgkit's Zarr format
-using the \sgapi{read\_scikit\_allel\_vcfzarr} function.
-The data contained 1,164
-samples at 39,604,636 sites, and was [TODO] MB on disk before conversion, and
-[TODO] MB after conversion to sgkit's Zarr format. Data for the X chromosome
-was discarded since it was not available for all samples. The conversion took
-[TODO: X minutes Y seconds], including a postprocessing ``rechunk'' step to
-ensure that the data was suitably chunked for the subsequent analysis.
-
-We grouped samples into 15 cohorts based on location using simple Pandas and
-Xarray data manipulation functions. We then set up half-overlapping windows
-along the genome using sgkit's \sgapi{window\_by\_position} function with a fixed
-window size of 6000 base pairs, and a step size of 3000 base pairs.
-
-We computed H statistics for one cohort using the \sgapi{Garud\_H} function in sgkit.
-This operation took [TODO: X minutes Y seconds]. Finally, we verified that the
-output was concordant with scikit-allel. [TODO: how hard to reproduce the
-scikit-allel visualization?]
-
-[TODO: summarize the biologically interesting thing here]
-
-\subsection{Quantitative Genetics}
-[TODO lacking a lot of detail here in terms of compute and software.
-https://github.com/pystatgen/sgkit-publication/issues/26]
-
-Quantitative genetics is classically concerned with understanding
-the link between continuously variable quantitative traits
-with complex genetics~\citep{hill2010understanding}.
-Through decades of selective breeding, quantitative genetics methods have
-led to X-fold increases in milk yield [etc, citations].
-They are also applied to
-natural populations~\citep{wilson2010ecologist}
-Quantitative genetics methods are used across a wide variety of
-organisms, with many species of argicultural interest having
-variable ploidy levels etc.
-
-Much of classical quantitative genetics uses observed pedigree structure
-in mixed models to partition the variance of phenotypes, without
-reference to any genomic data.
-Fitting generalised linear mixed models (LMMs) using
-software such as ASReml~\citep{butler2009asreml}
-and MCMCglmm~\citep{hadfield2010mcmc} require only the pedigree
-information and trait data.
-Genetic marker data~\citep{bernardo2008molecular} of various
-types (RFLPs, microsats etc) required statistical models.
-BLUPs include genetic information~\citep{endelman2011ridge}.
-
-Many packages are available in R [cites]. Because much of the computation
-in quantitative genetics has been around solving
-general statistical models using linear algebra, R is very good.
-However, with larger and larger samples sizes, particularly
-in agricultural applications.
-For example,
-the 1000 bull genomes project~\citep{hayes20191000}
-comprises close to 7000 genomes, embedded in multi-generation pedigrees
-with millions of animals and extensive SNP array genotype and phenotype
-data \citep[e.g.][]{cesarani2022mulibreed}.
-[Methods are hitting a computational wall]
-
-Much of the functionality required for quantitative genetics work
-is therefore provided by access to efficient and scalable linear algebra
-routines (a core element of the PyData ecosystem), the ability
-to access genetic variation data from sources such as plink and VCF,
-and some specialised routines to handle pedigree data and to
-estimate relatedness matrices. Sgkit provides [this], with a particular
-focus on supporting autopolyploids.
-
-
 
 \section{Discussion}
 
@@ -1033,65 +616,7 @@ their own filtered copies. We suggest that the Zarr VCF approach
 we have provided would be a good starting point for designing
 such a compute platform.
 
-\item TODO several missing paragraphs here discussing the
-benefits of the other layers of the stack.
-
-\item Closing. Sgkit, built on the fundamental idea of storing
-data in a simple, efficient and distributable fashion, would
-hopefully be one element of this compute ecosystem.
-Xarray, Dask and numba provide powerful tools to make users
-more productive, and enable the interactive analysis of large
-scale variation data. We have illustated the current functionality
-through examples here across X-genetics, but there is much
-potential for more. The library is specifically designed to make
-contribution easy, and we welcome people to the open-source
-community.
-
 \end{itemize}
-
-
-%%% OLD TEXT
-% \begin{itemize}
-
-% \item While API based approaches such as htsget~\citep{kelleher2019htsget}
-% and more generally federated access to data~\citep{rehm2021ga4gh}
-% are an important part of the future of genomics, we must still pay
-% attention to how efficient \emph{local} compute is. We need to
-% store and exchange data in an efficient and easily accessible
-% format. [Could talk about
-% how early GA4GH APIs failed because they didn't really consider
-% efficiency? Converting VCF to JSON was never going to be efficient?
-% Might not be worth getting into]
-
-% \item Users of sgkit will be able to perform data manipulation, analysis, and
-% visualization using familiar PyData tools, with only domain-specific methods
-% requiring domain-specific APIs. They will also benefit from interactive
-% performance for medium-sized data and the ability to scale out to biobank-scale
-% data within the same library. 
-
-% \item
-% Methods developers won’t have to reimplement undifferentiated functionality
-% like defining a custom data model, reading from files into that data model, and
-% validating data. Instead, they can implement their novel methods against
-% sgkit’s data model and instantly gain adjacent functionality and accessibility
-% to sgkit’s user community. This is well illustrated by our implementation of
-% the state-of-the-art REGENIE algorithm, which requires less than 1000 lines of
-% Python code (including documentation) and has comparable performance to the
-% original C++. Further, many key methods in statistical genetics operate on GWAS
-% summary statistics, and integrating individual level data with external summary
-% statistics is an increasingly important strategy which other toolkits have not
-% yet formalized.
-
-% \item sgkit makes it easier for researchers to
-% make their whole analysis pipeline available in a reproducible Jupyter
-% notebook. Most statistical genetics papers describe the collection of
-% command-line utilities used in their methods section, and a select few make a
-% workflow connecting the command-line utilities available. Users of sgkit can
-% work within a Jupyter notebook without having to call out to command-line
-% utilities, making the journey from raw data to scientific findings easier to
-% represent in a single notebook.
-
-% \end{itemize}
 
 \section{Methods}
 
@@ -1257,199 +782,6 @@ for these chunks, compute nodes can directly access the chunks that
 are needed, and not read irrelevant data.
 [TODO flesh out and more stuff.]
 
-\subsection{Scaling up interactive analysis}
-The storage and analysis of datasets consisting of hundreds of
-thousands of genomes presents major challenges.
-Fig.~\ref{fig-data-storage} shows the performance of \toolname{sgkit}
-in terms of storage space and computation time  on a simple benchmark (see
-below for details) with increasing
-numbers of samples, contrasting with the standard BCF file format
-and \toolname{bcftools} utility.
-The dataset used is a subset of the
-ultra-realistic simulations of 1.4 million French-Canadians
-provided by~\citet{anderson2023genes}, which is freely avilable
-and has been shown to
-accurately reflect fine-scaled demographic structure.
-Although
-simulations can never capture the full richness of real data,
-this resource certainly reflects the patterns of allele frequency
-and correlation structure that we would expect in large-scale
-human studies, and provides a useful and reproducable benchmark.
-Note that as we increase the sample size, the number of variant
-sites also increases [following basic popgen principles?].
-
-The scale of present-day genomic data means that compact
-storage is of paramount importance, and reductions in storage space
-can make a significant difference in overall costs.
-Fig.~\ref{fig-data-storage}A shows that the
-compressed-chunked-array Zarr format used by \toolname{sgkit} results
-in significantly smaller file-sizes than BCF (encoded using
-\texttt{bcftools view -O b}; we used \toolname{bcftools}
-version 1.18 throughout). At the extreme, when we have 1M
-samples, we require XGB for the BCF file and a total of YGB
-for the \toolname{sgkit} version. Note that under the default
-directory based Zarr store this results in XX files of around
-y KB each to store the chunks. Different Zarr storage engines
-can be used, varying from a ZipFile which keeps the entire
-dataset in a single file to a cloud store [details] which stores
-chunks in [a cloud store]. The chunk size is a parameter and
-can be tuned. [bit more detail here].
-
-
-The scale of modern genomic datasets also means that calculations must
-be parallelised. This is illustrated in Fig.~\ref{fig-whole-matrix-compute}B,
-where we compare the performance of a simple calculation requiring
-the examination of all genotypes using \toolname{bcftools}
-and \texttt{sgkit}. Interactive analysis is only possible through
-parallelisation, as optimised single-threaded code
-is simply not fast enough.
-Although it is relatively straightforward to split calculations across
-the genome using tools like \toolname{bcftools}, the process
-is quite manual, and often involves working with HPC schedulers
-or workflow managers [this is very rough, just seeing where it goes].
-Splitting the workload \emph{by sample} however, is much more
-difficult. Parallelisation by variant and sample is an inherent
-part of \texttt{sgkit}'s design---the variant matrix is chunked
-in two dimensions, and Dask transparently maps computations to these
-chunks.
-Fig.~\ref{fig-whole-matrix-compute}B shows how \texttt{sgkit} scales
-on a single server, and how computation time decreases as we use
-more threads. In contrast, using threads with
-\toolname{bcftools} (via the XXX option) makes almost no difference
-because computational model is inherently sequential, and additional threads
-are only used to facilitate decompression.
-As we see in section XXX,
-a major advantage of \texttt{sgkit} is that it not only supports
-scaling \emph{up} within a server, but also scaling \emph{out}
-across multiple servers.
-
-The ability to
-run pre-defined analyses interactively on very large datasets by
-transparently distributing across a cluster is a major boost to
-researcher productivity. The ability to define one's \emph{own}
-analyses using familiar Python data-science tools and libraries,
-and to similarly distribute across a cluster (with single-threaded
-speed close to native compiled code) is a game-changer [say better].
-Fig.~\ref{fig-whole-matrix-compute}C shows the code used in the benchmark
-for \toolname{sgkit} in Fig.~\ref{fig-whole-matrix-compute}B. The heavy
-computation here is done in the \texttt{variant\_stats(ds)} function,
-which computes a set of variables summarising each of the variants
-by examining the entire variant matrix.
-These variables are mostly one-dimensional, and can thefore
-be processed `in-core' using numpy methods very effectively.
-For example, we \texttt{variant\_n\_het} the number of heterozygous samples
-in Fig.~\ref{fig-whole-matrix-compute}C. For $n=10^6$ we have X million
-variants, and the overall size of the data is Y MiB which
-comfortably fits in memory. Thus, the
-\texttt{get\_prob\_dist} function shown here reproduces the functionality
-of the \toolname{bcftools +afdist} plugin, which must be compiled and
-requires detailed knowledge of \toolname{htslib} APIs, using standard
-Python data science tools, and with similar performance.
-
-Reducing the variant matrix to summaries that are separately stored
-is the standard practise when using VCF/BCF files, for precisely the
-reason of avoiding the need to examine the entire genotype matrix.
-These are most often stored as ``INFO`` fields.
-Indeed, \toolname{bcftools +afdist} requires that the \texttt{AC}
-INFO field is present (but does not raise an error
-if it doesn't). Because of the row-based storage approach of
-VCF/BCF, adding any new fields to a file means reading in the entire
-file, and writing out a full copy. For our $n=10^6$ samples example,
-computing \texttt{AC} value required XX hours.
-In contrast, the columnar storage approach (see section XXX) used
-in \toolname{sgkit} means that we can \emph{update} an existing
-dataset with this derived information, without altering the existing
-on-disk information.
-Computing the
-\texttt{variant\_allele\_counts} variable using
-40 threads  required XX minutes, and updating the existing dataset required
-0.X seconds.
-
-The shortcomings of VCF as a storage format and computational
-substrate are well known, and as we discuss in Section XXX,
-storing genetic variation data is a complex issue
-and the subject of substantial ongoing research. The point of this
-section is not to establish that the approach taken by \toolname{sgkit}
-is state-of-the-art, but to contrast the approach we have taken
-with VCF (as the standard storage format) and to demonstrate
-the scalability and efficiency of \toolname{sgkit} as an analysis
-platform.
-
-
-\subsection{Sgkit design principles}
-
-Openness is a core organising principle of sgkit, both in terms of
-development processes and code licensing, and also with respect
-to usability. By following the general philosophy of array-oriented
-computing, the functionality in sgkit is organised around the
-key concept of a ``dataset`` which encapsulates a set of
-related ``variables''. The implementation aims to be as agnostic
-as possible as to the underlying implementation of these arrays,
-which can be stored in-memory as NumPy arrays, in chunked
-compressed on-disk storage as Zarr arrays, or ...
-
-% Perhaps this should be mentioned in the QuantGen section?
-The data layout used here is compatible with the ChromaX
-breeding program simulator~\citep{younis2023chromax}, which
-is leveraging other aspects of the PyData ecosystem to
-fully utilise modern parallel hardware.
-
-
-[In later sections we discuss enabling technologies in detail,
-here we talk about how we use them from a high-level, and layout
-the overall design philosophy. This isn't documentation, rather
-it's the forum where we lay out explicitly early design choices
-and their rationale.]
-
-VCF conversion is handled using
-\toolname{cyvcf2}~\citep{pedersen2017cyvcf2}.
-[TODO any citations for these?]
-BGEN using \toolname{cbgen}.
-Plink support using \toolname{bed\_reader}
-
-[Text from proposal]
-
-The rapid evolution of supporting projects in the PyData ecosystem, including Dask for
-distributed processing, Xarray for coordinated operations on groups of labeled
-n-dimensional arrays, Zarr for n-dimensional array storage on cloud object
-stores, and Numba for hardware acceleration. We’ve designed sgkit from the
-ground up to tightly integrate with these libraries so that we can benefit from
-the many improvements being made upstream, making the PyData ecosystem
-accessible to statistical geneticists.
-
-We've also defined a Zarr representation for efficient storage of this data.
-We’ve designed an Xarray dataset-based data model which can be populated from
-any of the file formats above, and against which library methods are
-implemented. These methods include variant and sample quality control,
-population structure analysis, genome-wide selection scans, and genome-wide
-association analyses, including a novel implementation of the recently
-developed and state-of-the-art REGENIE algorithm.
-
-
-
-\section{Enabling technologies}
-
-[High-level summary of where things are in terms of data analysis
-in genomics, pointing forwards to
-the individual use-cases of popgen, statgen etc to discuss the
-individual tools.]
-
-Other sciences have been working at the petabyte scale for some time.
-[I don't really know the background here, it'll require some research.
-Astronomics, geosciences etc have all been working with such large
-datasets, and been using Python to do so, successfullly. Concrete
-examples]
-
-While some aspects of genomics data are unique and require specialised
-tooling, by the time that variants have been called and the we wish
-to work on the final stages of analysis, we are usually
-working with large n-dimensional arrays of numerical data. Such
-datasets are precisely what a large and active community of
-developers have been working on in the PyData Ecosystem. The goal
-of sgkit is to bring these tools to genomics, using a
-shared platform for analysing large arrays of numerical data. In the
-following subsections we discuss the key technologies, and how
-they apply to genomics.
 
 \subsubsection{Array oriented computing}
 
@@ -1521,28 +853,6 @@ and lots of prior work in this space e.g. \citep{kelleher2013processing}
 htslib~\citep{bonfield2021htslib}, CRAM~\citep{bonfield2014scramble,bonfield2022cram}
 which uses a columnar approach
 \end{itemize}
-
-\subsubsection{Just-in-time compilation}
-
-Many of the analyses that we wish to perform in genomics are unique,
-and the ability to quickly put together complex queries using
-high-level tools like shell pipelines and scripting languages
-is often a major bonus. However, such approaches are often not
-viable at the petabyte scale, where efficient compiled code that
-uses available CPU resources effectively are required. However,
-writing code in compiled languages such as C, C++ or Java
-is far more labour intensive, as well as requiring more specialised
-software development experience.
-
-Similarly, [scripting languages such as python are great for
-contributing to open source libraries, because there's a much
-lower barrier to contribution.]
-
-We use numba because [it's awesome].
-
-\subsubsection{Heterogenous computing}
-
-GPUs are cool, we support them.
 
 
 \subsection{Storing genetic variation data}
@@ -1629,89 +939,6 @@ sequential workflows. We have Python, and distributed compute. ]
 % data~\citep{li2016bgt}. Recent extensions include privacy preserving
 % search~\citep{shimizu2016efficient} and generalisation to the setting of graph
 % genomes~\citep{novak2017graph}.
-
-\subsection{Reimplementing complex methods}
-
-
-To showcase the advantages of \sgkit's pure-Python development model, we
-discuss some things we've implemented.
-
-
-\subsection{Functionality}
-
-[Just listing out all the things that have been implemented to try and get
-some kind of grip on what we're doing]
-
-
-\begin{itemize}
-
-\item \sgapi{pc\_relate} estimate genetic relatedness, returns sample x sample
-kinship coefficient matrix. \citep{conomos2016model} (genetic Relatedness matrix)
-
-\item \sgapi{Weir\_Goudet\_beta} sample x sample Kinship matrix
-\citep{weir2017unified} (genetic Relatedness matrix)
-
-\item \sgapi{genomic\_relationship} Genetic relationship matrix estimated
-by either the Van Raden algorithm generalised to
-autopolyploids~\citep{vanraden2008efficient,ashraf2016estimating,bilton2020developing}
-and the Endelman-Jannink estimator \citep{endelman2011ridge}
-(genetic Relatedness matrix)
-
-\item \sgapi{hybrid\_relationship} Hybrid relationship matrix
-(AKA the HRM or H-matrix) combining pedigree and genomic information
-~\citep{martini2018effect}
-Also \sgapi{hybrid\_inverse\_relationship} (Relatedness matrices)
-
-\item \sgapi{pedigree\_inverse\_kinship} Calculate the inverse of the kinship
-matrix from pedigree structure.
-
-\item \sgapi{pedigree\_kinship} Calculate the kinship
-matrix from pedigree structure.
-
-\item \sgapi{invert\_relationship\_matrix} Compute the inverse of a
-relationship matrix (?)
-
-\item \sgapi{pedigree\_contribution} expected genomic contribution of each
-sample to each other based on pedigree (Hamilton-Kerr?)
-
-\item \sgapi{pedigree\_inbreeding} Estimate expected per-sample
-inbreeding coefficients from pedigree structure.
-\citep{hamilton2018computation}
-
-\item \sgapi{identity\_by\_state} Pairwise sample x sample matrix
-of IBS probabilities
-
-\item \sgapi{ld\_matrix} Sparse matrix of LD values exceeding a threshold.
-\item \sgapi{ld\_prune} Find a maximally independent set of variants
-(based on plink algorithm)
-
-\item \sgapi{regenie} produces trait estimates for association tests.
-\citep{mbatchou2021computationally} (GWAS)
-\item \sgapi{genee} Gene-level effects
-\citep{cheng2020estimation} (GWAS)
-\item \sgapi{gwas\_linear\_regression} Least square regression based
-on BoltLMM~\citep{loh2015efficient} (GWAS)
-\item \sgapi{hardy\_weinberg\_test} Exact Hardy-Weinberg
-test~\citep{wigginton2005note} (GWAS)
-
-\item \sgapi{TajimasD} popgen stat
-\item \sgapi{divergence} popgen stat
-\item \sgapi{diversity} popgen stat
-\item \sgapi{pbs} popgen stat
-\item \sgapi{Fst} popgen stat
-\item \sgapi{Garud\_H} soft sweep stats~\citep{garud2015recent}
-
-
-\item \sgapi{sample\_stats} basic QC variant data
-
-\item \sgapi{variant\_stats} basic QC variant data
-
-\item \sgapi{pedigree\_sel} slice by pedigree
-
-\item \sgapi{window\_by\_genome} Windowing
-
-\end{itemize}
-
 
 
 
